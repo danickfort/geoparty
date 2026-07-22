@@ -1,6 +1,8 @@
 import type { Server, Socket } from 'socket.io'
 import type { ClientToServerEvents, ServerToClientEvents } from '../shared/events.js'
+import { renderSlackMessage } from '../shared/slack.js'
 import { resolveRevealPlaces } from './geocode.js'
+import { postToSlack } from './slack.js'
 import type { Game } from './game.js'
 
 interface SocketData {
@@ -143,6 +145,17 @@ export function setupSockets(io: IO, game: Game): void {
     socket.on('admin:addToCollection', adminAck(({ collectionId, game: g }) => game.addToCollection(String(collectionId), g)))
     socket.on('admin:updateCollectionGame', adminAck(({ collectionId, game: g }) => game.updateCollectionGame(String(collectionId), g)))
     socket.on('admin:loadCollectionGame', adminAck(({ collectionId, gameId }) => game.loadCollectionGame(String(collectionId), String(gameId)), 'not_in_lobby'))
+
+    socket.on('admin:postToSlack', async (ack) => {
+      if (socket.data.role !== 'admin') return ack({ ok: false, error: 'unauthorized' })
+      const games = game.getUnpostedGames()
+      if (games.length === 0) return ack({ ok: false, error: 'nothing_to_post' })
+      const result = await postToSlack(renderSlackMessage(games))
+      if (!result.ok) return ack(result)
+      game.markGamesPosted(games.map((g) => g.id))
+      ack({ ok: true })
+      broadcast()
+    })
 
     socket.on('admin:deleteCollection', ({ id }) => {
       if (socket.data.role !== 'admin') return
