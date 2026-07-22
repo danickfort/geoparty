@@ -73,6 +73,14 @@ Or without Docker: `npm run build && ADMIN_PASSWORD=change-me npm start`.
 | `ADMIN_PASSWORD` | **yes** | — | `/admin` login (admin is disabled if unset) |
 | `PORT` | no | `3000` | HTTP port |
 | `PUBLIC_URL` | no | derived from request headers | URL encoded in the QR code — set it when a reverse proxy doesn't forward `x-forwarded-proto`/`host` |
+| `SLACK_BOT_TOKEN` | no | — | Slack bot token (needs the `chat:write` scope) for posting game results |
+| `SLACK_CHANNEL` | no | — | Slack channel for results, e.g. `#geoparty` |
+
+When both `SLACK_BOT_TOKEN` and `SLACK_CHANNEL` are set, the admin can post finished-game
+results to Slack. After each game the results are recorded, and a **📣 Post to Slack** button
+on the admin panel opens a preview of every not-yet-posted game and the exact message; posting
+sends one combined message and marks those games as posted. The button and preview are always
+available for review even when Slack isn't configured.
 
 ## Avatars
 
