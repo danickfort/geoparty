@@ -46,6 +46,36 @@ export interface RevealState {
   winnerDistanceKm: number | null
 }
 
+/** One player's result in a finished game (closest-first when listed). */
+export interface GamePlayerResult {
+  avatar: string
+  name: string
+  distanceKm: number
+  /** Nearest named place of their guess ("Lyon, France"), null if unresolved. */
+  place: string | null
+}
+
+/**
+ * A trace of a finished game, captured when the winner is crowned and persisted
+ * to data/history.json. `posted` flips to true once its results reach Slack.
+ */
+export interface GameRecord {
+  id: string
+  /** ms since epoch. */
+  playedAt: number
+  imageUrl: string
+  answer: LatLng
+  /** Nearest named place of the answer, null if unresolved. */
+  answerPlace: string | null
+  description: string
+  winnerAvatar: string | null
+  winnerName: string | null
+  winnerDistanceKm: number | null
+  /** Every player's result, closest-first (the winner is the first entry). */
+  results: GamePlayerResult[]
+  posted: boolean
+}
+
 /** A round prepared in advance by the admin, persisted to data/prepared.json. */
 export interface PreparedGame {
   id: string
@@ -122,4 +152,8 @@ export interface AdminState extends PublicState {
   preparedGames: PreparedGame[]
   /** Themed collections of prepared games. */
   collections: Collection[]
+  /** Finished games not yet posted to Slack (closest-first results). */
+  unpostedGames: GameRecord[]
+  /** Whether the server has Slack credentials configured. */
+  slackConfigured: boolean
 }
