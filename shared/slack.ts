@@ -13,7 +13,7 @@ function answerLabel(game: GameRecord): string {
 }
 
 function renderGame(game: GameRecord, index: number): string {
-  const lines: string[] = [`*Game ${index + 1} — ${answerLabel(game)}*`]
+  const lines: string[] = [`Game ${index + 1} — ${answerLabel(game)}`]
 
   const others = game.winnerAvatar
     ? game.results.filter((r) => r.avatar !== game.winnerAvatar)
@@ -21,7 +21,7 @@ function renderGame(game: GameRecord, index: number): string {
 
   if (game.winnerName) {
     const dist = game.winnerDistanceKm != null ? formatKm(game.winnerDistanceKm) : '—'
-    lines.push(`🏆 Congrats to *${game.winnerName}*, ${dist} from *${answerLabel(game)}*!`)
+    lines.push(`🏆 Congrats to ${game.winnerName}, ${dist} from ${answerLabel(game)}!`)
   } else {
     lines.push('No winner this round.')
   }
@@ -35,10 +35,12 @@ function renderGame(game: GameRecord, index: number): string {
 }
 
 /**
- * Render finished games as a single Slack mrkdwn message. Used by BOTH the
- * server (to post) and the admin client (to preview) so the two never diverge.
+ * Render finished games as a single message. Posted as the `text` variable of a
+ * Slack Workflow Builder webhook, which inserts variable content as PLAIN TEXT
+ * (mrkdwn markup like *bold* is shown literally), so this uses none. Used by
+ * BOTH the server (to post) and the admin client (to preview) so they can't diverge.
  */
 export function renderSlackMessage(games: GameRecord[]): string {
   const sections = games.map(renderGame)
-  return [`*🌍 GeoParty results*`, ...sections].join(`\n\n${DIVIDER}\n\n`)
+  return [`🌍 GeoParty results`, ...sections].join(`\n\n${DIVIDER}\n\n`)
 }

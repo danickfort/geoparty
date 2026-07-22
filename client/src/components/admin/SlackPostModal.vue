@@ -16,9 +16,15 @@ const error = ref<string | null>(null)
 const km = (v: number) => `${Math.round(v).toLocaleString()} km`
 
 const ERRORS: Record<string, string> = {
-  slack_not_configured: "Slack isn't configured on the server.",
+  slack_not_configured: "Slack isn't configured on the server (set SLACK_WEBHOOK_URL).",
   nothing_to_post: 'There are no new results to post.',
   network_error: "Couldn't reach Slack — check the server connection.",
+}
+
+function errorMessage(code: string | undefined): string {
+  if (code && ERRORS[code]) return ERRORS[code]
+  if (code?.startsWith('http_')) return `Slack webhook rejected the post (${code.slice(5)}).`
+  return `Couldn't post to Slack (${code ?? 'unknown'}).`
 }
 
 async function post() {
@@ -27,7 +33,7 @@ async function post() {
   const r = await admin.postToSlack()
   posting.value = false
   if (r.ok) emit('close')
-  else error.value = ERRORS[r.error ?? ''] ?? `Slack rejected the post (${r.error ?? 'unknown'}).`
+  else error.value = errorMessage(r.error)
 }
 </script>
 
