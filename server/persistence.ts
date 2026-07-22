@@ -1,10 +1,11 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import type { Collection, PreparedGame } from '../shared/types.js'
+import type { Collection, GameRecord, PreparedGame } from '../shared/types.js'
 
 const DATA_DIR = path.join(process.cwd(), 'data')
 const SCORES_FILE = path.join(DATA_DIR, 'scores.json')
 const PREPARED_FILE = path.join(DATA_DIR, 'prepared.json')
+const HISTORY_FILE = path.join(DATA_DIR, 'history.json')
 const COLLECTIONS_DIR = path.join(DATA_DIR, 'collections')
 
 /** Scores keyed by avatar filename (the avatar IS the player identity across restarts). */
@@ -32,6 +33,20 @@ export function loadPreparedGames(): PreparedGame[] {
 
 export function savePreparedGames(games: PreparedGame[]): void {
   writeJson(PREPARED_FILE, games, 'prepared')
+}
+
+/** Traces of finished games (the source for Slack results posts). */
+export function loadHistory(): GameRecord[] {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(HISTORY_FILE, 'utf-8'))
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+export function saveHistory(history: GameRecord[]): void {
+  writeJson(HISTORY_FILE, history, 'history')
 }
 
 /** Themed collections — one JSON file per collection in data/collections/. */

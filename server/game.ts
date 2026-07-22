@@ -6,6 +6,7 @@ import type {
   AdminState,
   Collection,
   GameDraft,
+  GameRecord,
   LatLng,
   Phase,
   Player,
@@ -17,9 +18,11 @@ import type {
 import {
   deleteCollectionFile,
   loadCollections,
+  loadHistory,
   loadPreparedGames,
   loadScores,
   saveCollection,
+  saveHistory,
   savePreparedGames,
   saveScores,
 } from './persistence.js'
@@ -57,6 +60,8 @@ export class Game {
   preparedGames: PreparedGame[]
   /** Themed collections of games (admin-only, one file each in data/collections/). */
   collections: Collection[]
+  /** Traces of finished games (admin-only, persisted to data/history.json). */
+  history: GameRecord[]
 
   private scores: Record<string, number>
 
@@ -64,6 +69,7 @@ export class Game {
     this.scores = loadScores()
     this.preparedGames = loadPreparedGames()
     this.collections = loadCollections()
+    this.history = loadHistory()
     const dir = path.join(process.cwd(), 'avatars')
     try {
       this.avatars = fs
@@ -221,8 +227,60 @@ export class Game {
         saveScores(this.scores)
       }
     }
+    this.recordHistory()
     this.phase = 'winner'
     return true
+  }
+
+  /** Capture a trace of the just-finished game (no-op if nobody guessed). */
+  private recordHistory(): void {
+    if (!this.reveal || this.reveal.order.length === 0 || !this.answer) return
+    // reveal.order is farthest-first; the trace lists results closest-first.
+    const results = [...this.reveal.order].reverse().map((entry) => {
+      const player = this.players.get(entry.playerId)
+      const avatar = player?.avatar ?? entry.playerId
+      return {
+        avatar,
+        name: player?.name ?? nameFromAvatar(avatar),
+        distanceKm: entry.distanceKm,
+        place: entry.place,
+      }
+    })
+    const winner = this.winnerAvatar ? results.find((r) => r.avatar === this.winnerAvatar) : undefined
+    this.history.push({
+      id: crypto.randomUUID(),
+      playedAt: Date.now(),
+      imageUrl: this.imageUrl ?? '',
+      answer: this.answer,
+      answerPlace: this.reveal.answerPlace,
+      description: this.description,
+      winnerAvatar: this.winnerAvatar,
+      winnerName: winner?.name ?? null,
+      winnerDistanceKm: this.reveal.winnerDistanceKm,
+      results,
+      posted: false,
+    })
+    saveHistory(this.history)
+  }
+
+  getUnpostedGames(): GameRecord[] {
+    return this.history.filter((g) => !g.posted)
+  }
+
+  getGame(id: string): GameRecord | undefined {
+    return this.history.find((g) => g.id === id)
+  }
+
+  markGamesPosted(ids: string[]): void {
+    const set = new Set(ids)
+    let changed = false
+    for (const g of this.history) {
+      if (set.has(g.id) && !g.posted) {
+        g.posted = true
+        changed = true
+      }
+    }
+    if (changed) saveHistory(this.history)
   }
 
   showRoundResults(): boolean {
@@ -473,6 +531,9 @@ export class Game {
       guesses,
       preparedGames: this.preparedGames,
       collections: this.collections,
+      unpostedGames: this.getUnpostedGames(),
+      history: [...this.history].reverse(),
+      slackConfigured: Boolean(process.env.SLACK_WEBHOOK_URL),
     }
   }
 }
