@@ -143,10 +143,14 @@ export const useAdminStore = defineStore('admin', () => {
   // ── Slack results ────────────────────────────────────────────────────
 
   const unpostedGames = computed<GameRecord[]>(() => state.value?.unpostedGames ?? [])
+  const history = computed<GameRecord[]>(() => state.value?.history ?? [])
   const slackConfigured = computed(() => state.value?.slackConfigured ?? false)
 
   const postToSlack = () =>
     new Promise<Ack>((resolve) => socket.emit('admin:postToSlack', (r) => resolve(r)))
+
+  const postGameToSlack = (id: string) =>
+    new Promise<Ack>((resolve) => socket.emit('admin:postGameToSlack', { id }, (r) => resolve(r)))
 
   async function searchImages(query: string): Promise<ImageSearchResult[]> {
     const res = await fetch(`/api/search-images?q=${encodeURIComponent(query)}`, {
@@ -203,8 +207,10 @@ export const useAdminStore = defineStore('admin', () => {
     loadCollectionGame,
     saveGameTo,
     unpostedGames,
+    history,
     slackConfigured,
     postToSlack,
+    postGameToSlack,
     searchImages,
     uploadImage,
   }

@@ -157,6 +157,17 @@ export function setupSockets(io: IO, game: Game): void {
       broadcast()
     })
 
+    socket.on('admin:postGameToSlack', async ({ id }, ack) => {
+      if (socket.data.role !== 'admin') return ack({ ok: false, error: 'unauthorized' })
+      const record = game.getGame(String(id))
+      if (!record) return ack({ ok: false, error: 'not_found' })
+      const result = await postToSlack(renderSlackMessage([record]))
+      if (!result.ok) return ack(result)
+      game.markGamesPosted([record.id])
+      ack({ ok: true })
+      broadcast()
+    })
+
     socket.on('admin:deleteCollection', ({ id }) => {
       if (socket.data.role !== 'admin') return
       if (game.deleteCollection(String(id))) broadcast()

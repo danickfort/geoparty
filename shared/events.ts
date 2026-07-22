@@ -51,6 +51,8 @@ export interface ClientToServerEvents {
   ) => void
   /** Post all not-yet-posted game results to Slack as one message. */
   'admin:postToSlack': (ack: (r: Ack) => void) => void
+  /** Post (or re-post) a single game from the history to Slack. */
+  'admin:postGameToSlack': (payload: { id: string }, ack: (r: Ack) => void) => void
 }
 
 export interface ServerToClientEvents {

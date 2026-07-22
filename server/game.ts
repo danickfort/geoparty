@@ -267,6 +267,10 @@ export class Game {
     return this.history.filter((g) => !g.posted)
   }
 
+  getGame(id: string): GameRecord | undefined {
+    return this.history.find((g) => g.id === id)
+  }
+
   markGamesPosted(ids: string[]): void {
     const set = new Set(ids)
     let changed = false
@@ -528,7 +532,8 @@ export class Game {
       preparedGames: this.preparedGames,
       collections: this.collections,
       unpostedGames: this.getUnpostedGames(),
-      slackConfigured: Boolean(process.env.SLACK_BOT_TOKEN && process.env.SLACK_CHANNEL),
+      history: [...this.history].reverse(),
+      slackConfigured: Boolean(process.env.SLACK_WEBHOOK_URL),
     }
   }
 }
