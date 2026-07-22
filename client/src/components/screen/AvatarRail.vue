@@ -1,0 +1,71 @@
+<script setup lang="ts">
+import type { Player } from '@shared/types'
+
+defineProps<{
+  players: Player[]
+  side: 'left' | 'right'
+}>()
+</script>
+
+<template>
+  <div class="rail" :class="side">
+    <div
+      v-for="(p, i) in players"
+      :key="p.id"
+      class="rail-avatar pop-in"
+      :style="{ animationDelay: `${i * 0.05}s`, '--bob-delay': `${i * 0.4}s` }"
+      :title="p.name"
+    >
+      <img :src="`/avatars/${p.avatar}`" :alt="p.name" />
+      <span class="lock">🔒</span>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.rail {
+  position: absolute;
+  top: 0;
+  bottom: 70px;
+  width: 90px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  pointer-events: none;
+}
+
+.rail.left {
+  left: 6px;
+}
+
+.rail.right {
+  right: 6px;
+}
+
+.rail-avatar {
+  position: relative;
+  animation:
+    pop-in 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.3) both,
+    bob 2.6s ease-in-out infinite;
+  animation-delay: 0s, var(--bob-delay, 0s);
+}
+
+.rail-avatar img {
+  width: clamp(48px, 6vh, 72px);
+  height: clamp(48px, 6vh, 72px);
+  border-radius: 50%;
+  border: 3px solid var(--ok);
+  background: #fff;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+  display: block;
+}
+
+.lock {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  font-size: 1rem;
+}
+</style>
