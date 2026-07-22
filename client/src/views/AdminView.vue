@@ -10,9 +10,16 @@ import PlayerList from '@/components/admin/PlayerList.vue'
 import PreparedGames from '@/components/admin/PreparedGames.vue'
 import CollectionsPanel from '@/components/admin/CollectionsPanel.vue'
 import ImageSearchPanel from '@/components/admin/ImageSearchPanel.vue'
+import GameHistory from '@/components/admin/GameHistory.vue'
+import SlackPostModal from '@/components/admin/SlackPostModal.vue'
 
 const admin = useAdminStore()
 const game = useGameStore()
+
+const showSlack = ref(false)
+const gameEnded = computed(
+  () => game.phase === 'winner' || game.phase === 'roundResults' || game.phase === 'scoreboard',
+)
 
 onMounted(() => setRegisterRole(() => admin.reregister()))
 onBeforeUnmount(() => setRegisterRole(null))
@@ -23,7 +30,7 @@ const activeCount = computed(() => game.activePlayers.length)
 const lockedCount = computed(() => game.lockedPlayers.length)
 
 // ── tabs ─────────────────────────────────────────────────────────────────
-type Tab = 'game' | 'library' | 'search' | 'players'
+type Tab = 'game' | 'library' | 'search' | 'players' | 'history'
 const tab = ref<Tab>('game')
 
 const libraryCount = computed(() => {
@@ -37,6 +44,7 @@ const tabs = computed(() => [
   { id: 'library' as Tab, label: '🗂️ Library', badge: libraryCount.value || null },
   { id: 'search' as Tab, label: '🔍 Find', badge: null },
   { id: 'players' as Tab, label: '👥 Players', badge: game.players.length || null },
+  { id: 'history' as Tab, label: '🕘 History', badge: admin.history.length || null },
 ])
 
 // A phase change is what the host is acting on — always snap back to the game tab.
@@ -128,6 +136,15 @@ const mainAction = computed(() => {
       >
         🔄 Skip to new game
       </button>
+      <button
+        v-if="gameEnded && admin.unpostedGames.length > 0"
+        class="btn"
+        style="margin-top: 10px"
+        @click="showSlack = true"
+      >
+        📣 Post to Slack
+        <span class="badge">{{ admin.unpostedGames.length }}</span>
+      </button>
     </div>
 
     <nav class="tabs" role="tablist">
@@ -158,6 +175,10 @@ const mainAction = computed(() => {
     <ImageSearchPanel v-else-if="tab === 'search'" />
 
     <PlayerList v-else-if="tab === 'players'" />
+
+    <GameHistory v-else-if="tab === 'history'" />
+
+    <SlackPostModal v-if="showSlack" @close="showSlack = false" />
   </div>
 </template>
 

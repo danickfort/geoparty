@@ -1,12 +1,14 @@
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import type {
   AdminState,
   GameDraft,
+  GameRecord,
   ImageSearchResult,
   LatLng,
   PreparedGame,
 } from '@shared/types'
+import type { Ack } from '@shared/events'
 import { socket } from '@/services/socket'
 
 const PASSWORD_KEY = 'gp:adminPassword'
@@ -138,6 +140,18 @@ export const useAdminStore = defineStore('admin', () => {
   const saveGameTo = (target: string, game: GameDraft): Promise<boolean> =>
     target === 'prepared' ? savePrepared(game) : addToCollection(target, game)
 
+  // ── Slack results ────────────────────────────────────────────────────
+
+  const unpostedGames = computed<GameRecord[]>(() => state.value?.unpostedGames ?? [])
+  const history = computed<GameRecord[]>(() => state.value?.history ?? [])
+  const slackConfigured = computed(() => state.value?.slackConfigured ?? false)
+
+  const postToSlack = () =>
+    new Promise<Ack>((resolve) => socket.emit('admin:postToSlack', (r) => resolve(r)))
+
+  const postGameToSlack = (id: string) =>
+    new Promise<Ack>((resolve) => socket.emit('admin:postGameToSlack', { id }, (r) => resolve(r)))
+
   async function searchImages(query: string): Promise<ImageSearchResult[]> {
     const res = await fetch(`/api/search-images?q=${encodeURIComponent(query)}`, {
       headers: { 'x-admin-password': password.value },
@@ -192,6 +206,11 @@ export const useAdminStore = defineStore('admin', () => {
     deleteCollectionGame,
     loadCollectionGame,
     saveGameTo,
+    unpostedGames,
+    history,
+    slackConfigured,
+    postToSlack,
+    postGameToSlack,
     searchImages,
     uploadImage,
   }
