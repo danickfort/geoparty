@@ -154,6 +154,8 @@ export interface AdminState extends PublicState {
   collections: Collection[]
   /** Finished games not yet posted to Slack (closest-first results). */
   unpostedGames: GameRecord[]
+  /** Every finished game, newest-first (the game-history view). */
+  history: GameRecord[]
   /** Whether the server has Slack credentials configured. */
   slackConfigured: boolean
 }
