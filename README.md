@@ -73,14 +73,20 @@ Or without Docker: `npm run build && ADMIN_PASSWORD=change-me npm start`.
 | `ADMIN_PASSWORD` | **yes** | — | `/admin` login (admin is disabled if unset) |
 | `PORT` | no | `3000` | HTTP port |
 | `PUBLIC_URL` | no | derived from request headers | URL encoded in the QR code — set it when a reverse proxy doesn't forward `x-forwarded-proto`/`host` |
-| `SLACK_BOT_TOKEN` | no | — | Slack bot token (needs the `chat:write` scope) for posting game results |
-| `SLACK_CHANNEL` | no | — | Slack channel for results, e.g. `#geoparty` |
+| `SLACK_WEBHOOK_URL` | no | — | Slack Workflow Builder webhook URL for posting game results |
 
-When both `SLACK_BOT_TOKEN` and `SLACK_CHANNEL` are set, the admin can post finished-game
-results to Slack. After each game the results are recorded, and a **📣 Post to Slack** button
-on the admin panel opens a preview of every not-yet-posted game and the exact message; posting
-sends one combined message and marks those games as posted. The button and preview are always
-available for review even when Slack isn't configured.
+When `SLACK_WEBHOOK_URL` is set, the admin can post finished-game results to Slack. Create a
+[Workflow Builder](https://slack.com/features/workflow-automation) workflow with a **webhook**
+trigger that declares a single `text` variable, add a **"Send a message to channel"** step that
+posts that variable, and use the generated URL here — no app install or token required.
+
+After each game the results are recorded, and a **📣 Post to Slack** button on the admin panel
+opens a preview of every not-yet-posted game and the exact message; posting sends one combined
+message and marks those games as posted. The button and preview are always available for review
+even when Slack isn't configured.
+
+> Workflow Builder inserts the `text` variable as plain text, so the message uses no markdown
+> formatting (emoji, bullets, and line breaks only).
 
 ## Avatars
 
