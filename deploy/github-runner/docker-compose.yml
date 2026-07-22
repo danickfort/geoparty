@@ -1,0 +1,28 @@
+# Self-hosted GitHub Actions runner for the GeoParty NAS deploy job.
+# Connects OUTBOUND to GitHub (no inbound ports, no SSH exposure) and uses the
+# host Docker daemon (via the mounted socket) to run the `deploy` job.
+#
+# Copy .env.example to .env, fill in RUNNER_ACCESS_TOKEN, then:
+#   docker-compose up -d
+services:
+  runner:
+    image: myoung34/github-runner:latest
+    container_name: github-runner-geoparty
+    restart: unless-stopped
+    environment:
+      REPO_URL: https://github.com/krabilousse/geoparty
+      ACCESS_TOKEN: ${RUNNER_ACCESS_TOKEN}   # GitHub PAT — see .env
+      RUNNER_NAME: nas-geoparty
+      RUNNER_SCOPE: repo
+      LABELS: nas                            # the workflow targets [self-hosted, nas]
+      RUNNER_WORKDIR: /tmp/runner/work
+      DISABLE_AUTO_UPDATE: "true"
+    # Give the runner access to the host Docker socket so `docker` works in jobs.
+    group_add:
+      - "65538"                              # host docker socket GID on this NAS
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - runner-work:/tmp/runner
+
+volumes:
+  runner-work:
