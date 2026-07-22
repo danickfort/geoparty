@@ -10,9 +10,15 @@ import PlayerList from '@/components/admin/PlayerList.vue'
 import PreparedGames from '@/components/admin/PreparedGames.vue'
 import CollectionsPanel from '@/components/admin/CollectionsPanel.vue'
 import ImageSearchPanel from '@/components/admin/ImageSearchPanel.vue'
+import SlackPostModal from '@/components/admin/SlackPostModal.vue'
 
 const admin = useAdminStore()
 const game = useGameStore()
+
+const showSlack = ref(false)
+const gameEnded = computed(
+  () => game.phase === 'winner' || game.phase === 'roundResults' || game.phase === 'scoreboard',
+)
 
 onMounted(() => setRegisterRole(() => admin.reregister()))
 onBeforeUnmount(() => setRegisterRole(null))
@@ -128,6 +134,15 @@ const mainAction = computed(() => {
       >
         🔄 Skip to new game
       </button>
+      <button
+        v-if="gameEnded && admin.unpostedGames.length > 0"
+        class="btn"
+        style="margin-top: 10px"
+        @click="showSlack = true"
+      >
+        📣 Post to Slack
+        <span class="badge">{{ admin.unpostedGames.length }}</span>
+      </button>
     </div>
 
     <nav class="tabs" role="tablist">
@@ -158,6 +173,8 @@ const mainAction = computed(() => {
     <ImageSearchPanel v-else-if="tab === 'search'" />
 
     <PlayerList v-else-if="tab === 'players'" />
+
+    <SlackPostModal v-if="showSlack" @close="showSlack = false" />
   </div>
 </template>
 
