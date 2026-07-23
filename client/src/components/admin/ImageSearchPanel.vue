@@ -55,8 +55,8 @@ async function saveForLater(r: ImageSearchResult) {
   <section class="card search">
     <h3>🔍 Find a place on the web</h3>
     <p class="muted note">
-      Searches Wikipedia for places with a photo and coordinates — try “beach in Portugal”,
-      “Matterhorn” or “lighthouse Brittany”.
+      Searches Wikipedia articles and Wikimedia Commons photos for places with a photo and
+      coordinates — try “beach in Portugal”, “Matterhorn” or “lighthouse Brittany”.
     </p>
 
     <form class="bar" @submit.prevent="search">
@@ -74,6 +74,7 @@ async function saveForLater(r: ImageSearchResult) {
     <div v-if="results?.length" class="grid">
       <div v-for="r in results" :key="r.pageUrl" class="hit">
         <img :src="r.thumbUrl" :alt="r.title" loading="lazy" />
+        <span class="badge" :class="r.source">{{ r.source === 'commons' ? '📷 Commons' : '📖 Wikipedia' }}</span>
         <div class="hit-body">
           <strong>{{ r.title }}</strong>
           <span v-if="r.description" class="muted desc">{{ r.description }}</span>
@@ -118,12 +119,26 @@ async function saveForLater(r: ImageSearchResult) {
 }
 
 .hit {
+  position: relative;
   display: flex;
   flex-direction: column;
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   overflow: hidden;
+}
+
+.badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #fff;
+  background: rgba(5, 8, 15, 0.72);
+  backdrop-filter: blur(2px);
 }
 
 .hit img {

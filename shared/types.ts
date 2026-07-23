@@ -106,7 +106,7 @@ export interface GameDraft {
   description: string
 }
 
-/** One hit from the backend web image search (Wikipedia). */
+/** One hit from the backend web image search (Wikipedia articles + Wikimedia Commons photos). */
 export interface ImageSearchResult {
   title: string
   description: string | null
@@ -115,6 +115,7 @@ export interface ImageSearchResult {
   imageUrl: string
   thumbUrl: string
   pageUrl: string
+  source: 'wikipedia' | 'commons'
 }
 
 export interface PublicState {
