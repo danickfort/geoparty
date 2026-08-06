@@ -6,6 +6,9 @@ import { flagIcon, onSingleClick, useLeafletMap } from '@/composables/useLeaflet
 
 const model = defineModel<LatLng | null>({ required: true })
 
+/** Half-point radius (km) to preview around the pin; null/undefined hides it. */
+const props = defineProps<{ radiusKm?: number | null }>()
+
 const mapEl = ref<HTMLElement | null>(null)
 const map = useLeafletMap(mapEl, { zoomControl: true })
 
@@ -15,6 +18,7 @@ const map = useLeafletMap(mapEl, { zoomControl: true })
 // (Reading `model.value` right after assigning it returns a stale value because
 // defineModel round-trips through the parent's v-model, so we never do that.)
 let marker: L.Marker | null = null
+let circle: L.Circle | null = null
 
 function setMarker(latlng: LatLng | null) {
   if (!map.value || !latlng) return
@@ -22,6 +26,31 @@ function setMarker(latlng: LatLng | null) {
     marker = L.marker(latlng, { icon: flagIcon() }).addTo(map.value)
   } else {
     marker.setLatLng(latlng)
+  }
+  syncCircle()
+}
+
+function syncCircle() {
+  const m = map.value
+  if (!m) return
+  const radiusKm = props.radiusKm ?? null
+  if (!model.value || !radiusKm || radiusKm <= 0) {
+    circle?.remove()
+    circle = null
+    return
+  }
+  if (!circle) {
+    circle = L.circle(model.value, {
+      radius: radiusKm * 1000,
+      color: '#fbbf24',
+      weight: 2,
+      fillColor: '#fbbf24',
+      fillOpacity: 0.12,
+      interactive: false,
+    }).addTo(m)
+  } else {
+    circle.setLatLng(model.value)
+    circle.setRadius(radiusKm * 1000)
   }
 }
 
@@ -35,9 +64,11 @@ watch(map, (m) => {
 })
 
 watch(model, (v) => setMarker(v))
+watch(() => props.radiusKm, syncCircle)
 
 onBeforeUnmount(() => {
   marker = null
+  circle = null
 })
 </script>
 

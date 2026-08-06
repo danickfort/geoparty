@@ -2,7 +2,7 @@ import type { Server, Socket } from 'socket.io'
 import type { ClientToServerEvents, ServerToClientEvents } from '../shared/events.js'
 import { renderSlackMessage } from '../shared/slack.js'
 import { resolveRevealPlaces } from './geocode.js'
-import { postToSlack } from './slack.js'
+import { postToSlack, publicImageUrl } from './slack.js'
 import type { Game } from './game.js'
 
 interface SocketData {
@@ -94,9 +94,13 @@ export function setupSockets(io: IO, game: Game): void {
 
     socket.on('admin:setRound', (payload) => {
       if (socket.data.role !== 'admin') return
-      if (game.setRound(String(payload.imageUrl), payload.answer, String(payload.description ?? ''))) {
-        broadcast()
-      }
+      const ok = game.setRound(
+        String(payload.imageUrl),
+        payload.answer,
+        String(payload.description ?? ''),
+        typeof payload.halfPointRadiusKm === 'number' ? payload.halfPointRadiusKm : null,
+      )
+      if (ok) broadcast()
     })
     socket.on('admin:startGuessing', adminAction(() => game.startGuessing()))
     socket.on('admin:startReveal', () => {
@@ -150,7 +154,9 @@ export function setupSockets(io: IO, game: Game): void {
       if (socket.data.role !== 'admin') return ack({ ok: false, error: 'unauthorized' })
       const games = game.getUnpostedGames()
       if (games.length === 0) return ack({ ok: false, error: 'nothing_to_post' })
-      const result = await postToSlack(renderSlackMessage(games))
+      // One image variable per post — use the most recent round that has a public one.
+      const image = [...games].reverse().map((g) => publicImageUrl(g.imageUrl)).find(Boolean)
+      const result = await postToSlack(renderSlackMessage(games, game.getScoreboard()), image)
       if (!result.ok) return ack(result)
       game.markGamesPosted(games.map((g) => g.id))
       ack({ ok: true })
@@ -161,7 +167,10 @@ export function setupSockets(io: IO, game: Game): void {
       if (socket.data.role !== 'admin') return ack({ ok: false, error: 'unauthorized' })
       const record = game.getGame(String(id))
       if (!record) return ack({ ok: false, error: 'not_found' })
-      const result = await postToSlack(renderSlackMessage([record]))
+      const result = await postToSlack(
+        renderSlackMessage([record], game.getScoreboard()),
+        publicImageUrl(record.imageUrl),
+      )
       if (!result.ok) return ack(result)
       game.markGamesPosted([record.id])
       ack({ ok: true })

@@ -8,9 +8,23 @@ const props = defineProps<{ game: PreparedGame }>()
 const emit = defineEmits<{ save: [game: PreparedGame]; close: [] }>()
 
 // Local copy — nothing propagates until Save.
-const draft = ref<PreparedGame>({ ...props.game, answer: { ...props.game.answer } })
+const draft = ref<PreparedGame>({
+  ...props.game,
+  answer: { ...props.game.answer },
+  halfPointRadiusKm: props.game.halfPointRadiusKm ?? null,
+})
+
+// The number input yields '' when cleared — normalize to a whole km or null.
+const radiusKm = computed(() => {
+  const v = draft.value.halfPointRadiusKm
+  return typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.round(v) : null
+})
 
 const valid = computed(() => !!draft.value.name.trim() && !!draft.value.imageUrl)
+
+function save() {
+  emit('save', { ...draft.value, halfPointRadiusKm: radiusKm.value })
+}
 </script>
 
 <template>
@@ -26,7 +40,17 @@ const valid = computed(() => !!draft.value.name.trim() && !!draft.value.imageUrl
     <img v-if="draft.imageUrl" class="preview" :src="draft.imageUrl" alt="Preview" />
     <label class="field">
       <span>True location</span>
-      <AnswerPickerMap v-model="draft.answer" />
+      <AnswerPickerMap v-model="draft.answer" :radius-km="radiusKm" />
+    </label>
+    <label class="field">
+      <span>Half-point radius (km)</span>
+      <input
+        v-model.number="draft.halfPointRadiusKm"
+        type="number"
+        min="1"
+        step="1"
+        placeholder="e.g. 250 — leave empty to disable"
+      />
     </label>
     <label class="field">
       <span>Description</span>
@@ -35,7 +59,7 @@ const valid = computed(() => !!draft.value.name.trim() && !!draft.value.imageUrl
 
     <template #footer>
       <button class="btn" @click="emit('close')">Cancel</button>
-      <button class="btn btn-primary" :disabled="!valid" @click="emit('save', draft)">💾 Save</button>
+      <button class="btn btn-primary" :disabled="!valid" @click="save">💾 Save</button>
     </template>
   </AdminModal>
 </template>

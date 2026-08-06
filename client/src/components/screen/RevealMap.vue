@@ -58,6 +58,19 @@ function drawAnswer(animate: boolean) {
   if (!m || !reveal?.answer || flagMarker) return
   flagMarker = L.marker(reveal.answer, { icon: flagIcon({ drop: animate }) }).addTo(m)
   const bounds = L.latLngBounds([reveal.answer])
+  // Translucent half-point zone — guesses and the map stay readable through it.
+  if (reveal.halfPointRadiusKm) {
+    const circle = L.circle(reveal.answer, {
+      radius: reveal.halfPointRadiusKm * 1000,
+      color: '#fbbf24',
+      weight: 2,
+      dashArray: '6 8',
+      fillColor: '#fbbf24',
+      fillOpacity: 0.1,
+      interactive: false,
+    }).addTo(m)
+    bounds.extend(circle.getBounds())
+  }
   for (const marker of markers.values()) {
     bounds.extend(marker.getLatLng())
     // Dotted line from each guess to the true location.

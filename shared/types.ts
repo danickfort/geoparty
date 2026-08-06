@@ -42,6 +42,8 @@ export interface RevealState {
   answer: LatLng | null
   /** Nearest named place of the answer — masked until the answer is revealed. */
   answerPlace: string | null
+  /** Guesses within this distance of the answer earn half a point. null = disabled. */
+  halfPointRadiusKm: number | null
   winnerId: string | null
   winnerDistanceKm: number | null
 }
@@ -71,6 +73,8 @@ export interface GameRecord {
   winnerAvatar: string | null
   winnerName: string | null
   winnerDistanceKm: number | null
+  /** Half-point radius that was active for this game (absent in older records). */
+  halfPointRadiusKm?: number | null
   /** Every player's result, closest-first (the winner is the first entry). */
   results: GamePlayerResult[]
   posted: boolean
@@ -83,6 +87,8 @@ export interface PreparedGame {
   imageUrl: string
   answer: LatLng
   description: string
+  /** Half-point radius in km, null/absent = disabled (absent in older files). */
+  halfPointRadiusKm?: number | null
   /** ms since epoch, for stable ordering. */
   createdAt: number
 }
@@ -104,6 +110,8 @@ export interface GameDraft {
   imageUrl: string
   answer: LatLng
   description: string
+  /** Half-point radius in km, null/absent = disabled. */
+  halfPointRadiusKm?: number | null
 }
 
 /** One hit from the backend web image search (Wikipedia articles + Wikimedia Commons photos). */
@@ -147,6 +155,8 @@ export interface AdminState extends PublicState {
   answer: LatLng | null
   roundImageUrl: string | null
   roundDescription: string
+  /** Half-point radius of the current round, null = disabled. */
+  roundHalfPointRadiusKm: number | null
   /** Locked-in guesses by player id (admin eyes only before reveal). */
   guesses: Record<string, LatLng>
   /** Rounds prepared in advance, ready to be loaded. */
