@@ -10,8 +10,15 @@ const admin = useAdminStore()
 const imageUrl = ref('')
 const answer = ref<LatLng | null>(null)
 const description = ref('')
+const halfPointRadiusKm = ref<number | null>(null)
 const uploading = ref(false)
 const uploadError = ref<string | null>(null)
+
+// The number input yields '' when cleared — normalize to a whole km or null.
+const radiusKm = computed(() => {
+  const v = halfPointRadiusKm.value
+  return typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.round(v) : null
+})
 
 // A prepared game or search result was picked — overwrite the form with it.
 watch(
@@ -21,6 +28,7 @@ watch(
     imageUrl.value = draft.imageUrl
     answer.value = { ...draft.answer }
     description.value = draft.description
+    halfPointRadiusKm.value = draft.halfPointRadiusKm
     admin.roundDraft = null
   },
   { immediate: true },
@@ -48,6 +56,13 @@ watch(
   },
   { immediate: true },
 )
+watch(
+  () => admin.state?.roundHalfPointRadiusKm,
+  (r) => {
+    if (r != null && halfPointRadiusKm.value == null) halfPointRadiusKm.value = r
+  },
+  { immediate: true },
+)
 
 async function onFileChange(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0]
@@ -71,12 +86,13 @@ const saved = computed(
     !!admin.state.answer &&
     admin.state.answer.lat === answer.value?.lat &&
     admin.state.answer.lng === answer.value?.lng &&
-    admin.state.roundDescription === description.value.trim(),
+    admin.state.roundDescription === description.value.trim() &&
+    admin.state.roundHalfPointRadiusKm === radiusKm.value,
 )
 
 function save() {
   if (imageUrl.value && answer.value) {
-    admin.setRound(imageUrl.value, answer.value, description.value)
+    admin.setRound(imageUrl.value, answer.value, description.value, radiusKm.value)
   }
 }
 
@@ -93,6 +109,7 @@ async function saveForLater() {
     imageUrl: imageUrl.value,
     answer: answer.value,
     description: description.value,
+    halfPointRadiusKm: radiusKm.value,
   })
   if (ok) {
     savedForLater.value = true
@@ -120,7 +137,18 @@ async function saveForLater() {
 
     <label class="field">
       <span>True location</span>
-      <AnswerPickerMap v-model="answer" />
+      <AnswerPickerMap v-model="answer" :radius-km="radiusKm" />
+    </label>
+
+    <label class="field">
+      <span>Half-point radius <em class="muted">(km — locked guesses inside earn ½ point)</em></span>
+      <input
+        v-model.number="halfPointRadiusKm"
+        type="number"
+        min="1"
+        step="1"
+        placeholder="e.g. 250 — leave empty to disable"
+      />
     </label>
 
     <label class="field">

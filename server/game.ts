@@ -50,6 +50,8 @@ export class Game {
   imageUrl: string | null = null
   description = ''
   answer: LatLng | null = null
+  /** Guesses within this distance of the answer earn half a point. null = disabled. */
+  halfPointRadiusKm: number | null = null
   reveal: RevealState | null = null
   publicUrl = process.env.PUBLIC_URL ?? ''
   /** Standings snapshot from just before the current game awarded its point. */
@@ -155,11 +157,17 @@ export class Game {
 
   // ── admin transitions (invalid ones are ignored, returning false) ─────
 
-  setRound(imageUrl: string, answer: LatLng, description = ''): boolean {
+  setRound(
+    imageUrl: string,
+    answer: LatLng,
+    description = '',
+    halfPointRadiusKm: number | null = null,
+  ): boolean {
     if (this.phase !== 'lobby' || !imageUrl || !isValidLatLng(answer)) return false
     this.imageUrl = imageUrl
     this.answer = answer
     this.description = description.trim()
+    this.halfPointRadiusKm = sanitizeRadiusKm(halfPointRadiusKm)
     return true
   }
 
@@ -189,6 +197,7 @@ export class Game {
       answerRevealed: false,
       answer: null, // masked in public state until revealed
       answerPlace: null,
+      halfPointRadiusKm: this.halfPointRadiusKm,
       winnerId: null,
       winnerDistanceKm: null,
     }
@@ -213,7 +222,7 @@ export class Game {
     if (this.phase !== 'reveal' || !this.reveal?.answerRevealed) return false
     // Snapshot the standings before this game's point lands, so the scoreboard
     // can animate the reorder it causes.
-    this.previousScoreboard = this.buildScoreboard()
+    this.previousScoreboard = this.getScoreboard()
     this.winnerAvatar = null
     const closest = this.reveal.order[this.reveal.order.length - 1]
     if (closest) {
@@ -224,8 +233,19 @@ export class Game {
         winner.score++
         this.scores[winner.avatar] = winner.score
         this.winnerAvatar = winner.avatar
-        saveScores(this.scores)
       }
+      // Everyone else inside the half-point radius earns half a point.
+      const radius = this.halfPointRadiusKm
+      if (radius !== null) {
+        for (const entry of this.reveal.order) {
+          if (entry.playerId === closest.playerId || entry.distanceKm > radius) continue
+          const player = this.players.get(entry.playerId)
+          if (!player) continue
+          player.score += 0.5
+          this.scores[player.avatar] = player.score
+        }
+      }
+      saveScores(this.scores)
     }
     this.recordHistory()
     this.phase = 'winner'
@@ -257,6 +277,7 @@ export class Game {
       winnerAvatar: this.winnerAvatar,
       winnerName: winner?.name ?? null,
       winnerDistanceKm: this.reveal.winnerDistanceKm,
+      halfPointRadiusKm: this.halfPointRadiusKm,
       results,
       posted: false,
     })
@@ -303,6 +324,7 @@ export class Game {
     this.imageUrl = null
     this.description = ''
     this.answer = null
+    this.halfPointRadiusKm = null
     this.reveal = null
     this.previousScoreboard = null
     this.winnerAvatar = null
@@ -353,6 +375,7 @@ export class Game {
       imageUrl: String(draft.imageUrl),
       answer: { lat: draft.answer.lat, lng: draft.answer.lng },
       description: String(draft.description ?? '').trim(),
+      halfPointRadiusKm: sanitizeRadiusKm(draft.halfPointRadiusKm),
       createdAt: Date.now(),
     }
   }
@@ -374,6 +397,7 @@ export class Game {
     existing.imageUrl = update.imageUrl
     existing.answer = { lat: update.answer.lat, lng: update.answer.lng }
     existing.description = String(update.description ?? '').trim()
+    existing.halfPointRadiusKm = sanitizeRadiusKm(update.halfPointRadiusKm)
     savePreparedGames(this.preparedGames)
     return true
   }
@@ -390,7 +414,12 @@ export class Game {
   loadPrepared(id: string): boolean {
     const prepared = this.preparedGames.find((g) => g.id === id)
     if (!prepared) return false
-    return this.setRound(prepared.imageUrl, prepared.answer, prepared.description)
+    return this.setRound(
+      prepared.imageUrl,
+      prepared.answer,
+      prepared.description,
+      prepared.halfPointRadiusKm ?? null,
+    )
   }
 
   // ── collections ────────────────────────────────────────────────────────
@@ -443,6 +472,7 @@ export class Game {
     existing.imageUrl = update.imageUrl
     existing.answer = { lat: update.answer.lat, lng: update.answer.lng }
     existing.description = String(update.description ?? '').trim()
+    existing.halfPointRadiusKm = sanitizeRadiusKm(update.halfPointRadiusKm)
     saveCollection(collection)
     return true
   }
@@ -463,7 +493,7 @@ export class Game {
       .find((c) => c.id === collectionId)
       ?.games.find((g) => g.id === gameId)
     if (!game) return false
-    return this.setRound(game.imageUrl, game.answer, game.description)
+    return this.setRound(game.imageUrl, game.answer, game.description, game.halfPointRadiusKm ?? null)
   }
 
   // ── snapshots ──────────────────────────────────────────────────────────
@@ -473,7 +503,7 @@ export class Game {
    * in the room. Live players override their persisted score and mark it as
    * connected; avatars known only from past games appear as disconnected.
    */
-  private buildScoreboard(): ScoreEntry[] {
+  getScoreboard(): ScoreEntry[] {
     const byAvatar = new Map<string, ScoreEntry>()
     for (const [avatar, score] of Object.entries(this.scores)) {
       byAvatar.set(avatar, { avatar, name: nameFromAvatar(avatar), score, connected: false })
@@ -495,7 +525,7 @@ export class Game {
     return {
       phase: this.phase,
       players: [...this.players.values()].map(toPublicPlayer),
-      scoreboard: this.buildScoreboard(),
+      scoreboard: this.getScoreboard(),
       previousScoreboard: this.previousScoreboard,
       winnerAvatar: this.winnerAvatar,
       avatars: this.avatars,
@@ -528,6 +558,7 @@ export class Game {
       answer: this.answer,
       roundImageUrl: this.imageUrl,
       roundDescription: this.description,
+      roundHalfPointRadiusKm: this.halfPointRadiusKm,
       guesses,
       preparedGames: this.preparedGames,
       collections: this.collections,
@@ -540,6 +571,13 @@ export class Game {
 
 function toPublicPlayer({ guess: _guess, ...player }: PlayerRecord): Player {
   return player
+}
+
+/** Positive whole km or null — anything else (0, NaN, negatives) disables the radius. */
+function sanitizeRadiusKm(value: unknown): number | null {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return null
+  const km = Math.round(value)
+  return km > 0 ? km : null
 }
 
 function isValidLatLng(p: unknown): p is LatLng {

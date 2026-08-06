@@ -34,6 +34,7 @@ function useForRound(r: ImageSearchResult) {
     imageUrl: r.imageUrl,
     answer: { lat: r.lat, lng: r.lng },
     description: r.description ? `${r.title} — ${r.description}` : r.title,
+    halfPointRadiusKm: null,
   }
 }
 

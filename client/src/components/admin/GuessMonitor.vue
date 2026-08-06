@@ -14,6 +14,7 @@ const map = useLeafletMap(mapEl, { zoomControl: true })
 
 const markers = new Map<string, L.Marker>()
 let answerMarker: L.Marker | null = null
+let radiusCircle: L.Circle | null = null
 
 function syncMarkers() {
   const m = map.value
@@ -22,6 +23,24 @@ function syncMarkers() {
 
   if (state.answer && !answerMarker) {
     answerMarker = L.marker(state.answer, { icon: flagIcon() }).addTo(m)
+  }
+
+  // Half-point zone around the answer (admin eyes only during guessing).
+  if (state.answer && state.roundHalfPointRadiusKm) {
+    if (!radiusCircle) {
+      radiusCircle = L.circle(state.answer, {
+        radius: state.roundHalfPointRadiusKm * 1000,
+        color: '#fbbf24',
+        weight: 2,
+        dashArray: '6 8',
+        fillColor: '#fbbf24',
+        fillOpacity: 0.1,
+        interactive: false,
+      }).addTo(m)
+    }
+  } else if (radiusCircle) {
+    radiusCircle.remove()
+    radiusCircle = null
   }
 
   for (const [playerId, guess] of Object.entries(state.guesses)) {

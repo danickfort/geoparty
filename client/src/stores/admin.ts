@@ -50,8 +50,12 @@ export const useAdminStore = defineStore('admin', () => {
     authed.value = false
   }
 
-  const setRound = (imageUrl: string, answer: LatLng, description: string) =>
-    socket.emit('admin:setRound', { imageUrl, answer, description })
+  const setRound = (
+    imageUrl: string,
+    answer: LatLng,
+    description: string,
+    halfPointRadiusKm: number | null,
+  ) => socket.emit('admin:setRound', { imageUrl, answer, description, halfPointRadiusKm })
   const startGuessing = () => socket.emit('admin:startGuessing')
   const startReveal = () => socket.emit('admin:startReveal')
   const revealNext = () => socket.emit('admin:revealNext')
@@ -69,7 +73,12 @@ export const useAdminStore = defineStore('admin', () => {
    * When set, RoundSetup copies it into its form fields (overwriting them) and
    * clears it — how "load prepared" and search results reach the setup form.
    */
-  const roundDraft = ref<{ imageUrl: string; answer: LatLng; description: string } | null>(null)
+  const roundDraft = ref<{
+    imageUrl: string
+    answer: LatLng
+    description: string
+    halfPointRadiusKm: number | null
+  } | null>(null)
 
   const savePrepared = (payload: GameDraft) =>
     new Promise<boolean>((resolve) => socket.emit('admin:savePrepared', payload, (r) => resolve(r.ok)))
@@ -85,6 +94,7 @@ export const useAdminStore = defineStore('admin', () => {
       imageUrl: game.imageUrl,
       answer: { ...game.answer },
       description: game.description,
+      halfPointRadiusKm: game.halfPointRadiusKm ?? null,
     }
   }
 

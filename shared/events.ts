@@ -15,7 +15,12 @@ export interface ClientToServerEvents {
   'player:lockIn': (guess: LatLng, ack: (r: Ack) => void) => void
   'admin:login': (payload: { password: string }, ack: (r: Ack) => void) => void
   'admin:register': (payload: { password: string }, ack: (r: Ack) => void) => void
-  'admin:setRound': (payload: { imageUrl: string; answer: LatLng; description?: string }) => void
+  'admin:setRound': (payload: {
+    imageUrl: string
+    answer: LatLng
+    description?: string
+    halfPointRadiusKm?: number | null
+  }) => void
   'admin:startGuessing': () => void
   'admin:startReveal': () => void
   'admin:revealNext': () => void
