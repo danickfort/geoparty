@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import type { ScoreEntry } from '@shared/types'
 import { useGameStore } from '@/stores/game'
 
@@ -19,6 +19,15 @@ const showBadge = ref(false)
 
 const sameOrder = (a: ScoreEntry[], b: ScoreEntry[]) =>
   a.length === b.length && a.every((e, i) => e.avatar === b[i].avatar)
+
+// What each avatar just earned in the game that ended: the winner's full point
+// and half a point for everyone who landed inside the round's radius.
+const gains = computed(() => {
+  const byAvatar = new Map<string, string>()
+  for (const avatar of game.halfPointAvatars) byAvatar.set(avatar, '+0.5')
+  if (game.winnerAvatar) byAvatar.set(game.winnerAvatar, '+1')
+  return byAvatar
+})
 
 onMounted(() => {
   const current = game.scoreboard
@@ -63,8 +72,12 @@ watch(
         <span class="score">
           {{ p.score }}
           <Transition name="badge">
-            <span v-if="showBadge && celebrate && p.avatar === game.winnerAvatar" class="plus-one">
-              +1
+            <span
+              v-if="showBadge && celebrate && gains.has(p.avatar)"
+              class="gain"
+              :class="{ half: p.avatar !== game.winnerAvatar }"
+            >
+              {{ gains.get(p.avatar) }}
             </span>
           </Transition>
         </span>
@@ -154,13 +167,21 @@ h1 {
   color: var(--accent);
 }
 
-.plus-one {
+.gain {
   font-size: 0.65em;
   font-weight: 900;
   color: var(--accent-contrast);
   background: var(--accent);
   border-radius: 999px;
   padding: 2px 10px;
+}
+
+/* Half-points are real but secondary — outlined so the winner's +1 still pops. */
+.gain.half {
+  color: var(--accent);
+  background: transparent;
+  border: 2px solid var(--accent);
+  padding: 0 8px;
 }
 
 /* TransitionGroup: rows slide to their new rank. */

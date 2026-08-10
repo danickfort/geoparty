@@ -141,6 +141,12 @@ export interface PublicState {
   previousScoreboard: ScoreEntry[] | null
   /** Avatar of the player who won the game that just ended (for the score highlight). */
   winnerAvatar: string | null
+  /**
+   * Avatars that earned half a point in the game that just ended by guessing
+   * inside the round's radius (the winner is never listed here). Empty until a
+   * winner is crowned, and when the round had no radius.
+   */
+  halfPointAvatars: string[]
   /** All avatar filenames available in the avatars/ folder. */
   avatars: string[]
   /** null during lobby (the screen shows the QR code instead). */

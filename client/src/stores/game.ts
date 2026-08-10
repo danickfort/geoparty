@@ -30,6 +30,8 @@ export const useGameStore = defineStore('game', () => {
   // Standings just before the last game's point landed — drives the reorder animation.
   const previousScoreboard = computed(() => state.value?.previousScoreboard ?? null)
   const winnerAvatar = computed(() => state.value?.winnerAvatar ?? null)
+  // Avatars that picked up half a point inside the last round's radius.
+  const halfPointAvatars = computed(() => state.value?.halfPointAvatars ?? [])
 
   const playerById = (id: string) => players.value.find((p) => p.id === id)
 
@@ -48,6 +50,7 @@ export const useGameStore = defineStore('game', () => {
     scoreboard,
     previousScoreboard,
     winnerAvatar,
+    halfPointAvatars,
     playerById,
   }
 })

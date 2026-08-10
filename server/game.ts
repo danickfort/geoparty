@@ -58,6 +58,8 @@ export class Game {
   previousScoreboard: ScoreEntry[] | null = null
   /** Avatar of the winner of the game that just ended. */
   winnerAvatar: string | null = null
+  /** Avatars that earned half a point in the game that just ended. */
+  halfPointAvatars: string[] = []
   /** Rounds prepared in advance (admin-only, persisted to data/prepared.json). */
   preparedGames: PreparedGame[]
   /** Themed collections of games (admin-only, one file each in data/collections/). */
@@ -224,6 +226,7 @@ export class Game {
     // can animate the reorder it causes.
     this.previousScoreboard = this.getScoreboard()
     this.winnerAvatar = null
+    this.halfPointAvatars = []
     const closest = this.reveal.order[this.reveal.order.length - 1]
     if (closest) {
       this.reveal.winnerId = closest.playerId
@@ -243,6 +246,7 @@ export class Game {
           if (!player) continue
           player.score += 0.5
           this.scores[player.avatar] = player.score
+          this.halfPointAvatars.push(player.avatar)
         }
       }
       saveScores(this.scores)
@@ -328,6 +332,7 @@ export class Game {
     this.reveal = null
     this.previousScoreboard = null
     this.winnerAvatar = null
+    this.halfPointAvatars = []
     for (const p of this.players.values()) {
       p.lockedIn = false
       p.guess = null
@@ -528,6 +533,7 @@ export class Game {
       scoreboard: this.getScoreboard(),
       previousScoreboard: this.previousScoreboard,
       winnerAvatar: this.winnerAvatar,
+      halfPointAvatars: this.halfPointAvatars,
       avatars: this.avatars,
       imageUrl: this.phase === 'lobby' ? null : this.imageUrl,
       // The description can give away the location — only out after the win.
