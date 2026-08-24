@@ -1,9 +1,16 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { parseStreetViewUrl } from '@shared/streetview'
 import { useGameStore } from '@/stores/game'
 import AvatarRail from '@/components/screen/AvatarRail.vue'
+import StreetViewFrame from '@/components/StreetViewFrame.vue'
 
 const game = useGameStore()
+
+// A round's image can be a Google Street View link instead of a photo.
+const streetView = computed(() =>
+  game.imageUrl ? parseStreetViewUrl(game.imageUrl) : null,
+)
 
 const leftLocked = computed(() => game.lockedPlayers.filter((_, i) => i % 2 === 0))
 const rightLocked = computed(() => game.lockedPlayers.filter((_, i) => i % 2 === 1))
@@ -11,7 +18,8 @@ const rightLocked = computed(() => game.lockedPlayers.filter((_, i) => i % 2 ===
 
 <template>
   <div class="guess-screen">
-    <img v-if="game.imageUrl" class="photo" :src="game.imageUrl" alt="Where is this?" />
+    <StreetViewFrame v-if="streetView" class="pano" :spec="streetView" />
+    <img v-else-if="game.imageUrl" class="photo" :src="game.imageUrl" alt="Where is this?" />
     <AvatarRail :players="leftLocked" side="left" />
     <AvatarRail :players="rightLocked" side="right" />
     <div class="status">
@@ -37,6 +45,12 @@ const rightLocked = computed(() => game.lockedPlayers.filter((_, i) => i % 2 ===
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
+}
+
+/* A panorama fills the screen instead of being letterboxed like a photo. */
+.pano {
+  position: absolute;
+  inset: 0;
 }
 
 .status {

@@ -17,10 +17,11 @@ up across games.
 
 1. **Lobby** — the screen shows the QR code. Players scan it and pick an avatar
    (the avatar *is* their identity and name). Meanwhile the host sets up the
-   round: an image (URL or upload) and its true location on the map.
+   round: an image (URL, upload, or a [Street View link](#street-view-rounds))
+   and its true location on the map.
 2. **Play** — the host presses *Start game*. The screen swaps the QR for the
-   photo; player phones get a world map. As players lock in, their avatars
-   float along the edges of the big screen.
+   photo (or the Street View panorama); player phones get a world map. As
+   players lock in, their avatars float along the edges of the big screen.
 3. **Reveal** — the host steps through the guesses one by one, farthest first,
    each dropping onto the map with the player's face on the pin. Then the 🏁
    answer, then the winner celebration (+1 point).
@@ -88,6 +89,42 @@ even when Slack isn't configured.
 > Workflow Builder inserts the `text` variable as plain text, so the message uses no markdown
 > formatting (emoji, bullets, and line breaks only).
 
+## Street View rounds
+
+The round's **Image URL** field also takes a Google Street View link, and the big
+screen embeds the panorama instead of a photo — a GeoGuessr-style round.
+
+Paste any of these and the panorama is recognised automatically:
+
+- a full link copied from the address bar —
+  `https://www.google.com/maps/@46.5196,6.6323,3a,75y,235.36h,90t/data=…`
+- a short link from the mobile **Share** button — `https://maps.app.goo.gl/…`
+  (short links carry no coordinates, so the server expands one into the full URL
+  the moment you paste it; the expanded URL is what gets saved)
+- the legacy embed form — `…/maps?layer=c&cbll=46.5196,6.6323&cbp=11,235,0,0,0`
+
+A plain Google Maps link that *isn't* in Street View is rejected with a hint —
+open it, drop into Street View, then copy the URL again.
+
+The heading in the link is where the panorama starts, and the view is draggable
+with the mouse both in the admin preview and on the big screen.
+
+Rendering is keyless (no Google Maps API key or billing account) and comes in
+two flavours:
+
+- **Our own viewer** (the normal case, whenever the link carries a panorama id):
+  Google's raw imagery tiles stitched into a WebGL panorama. Street names,
+  navigation arrows, the place-name chip and every other control are drawn by
+  Google's renderer, not baked into the imagery — so none of them exist here.
+  Nothing gives the answer away. The view also drifts in a slow automatic pan
+  until someone grabs it, and scroll-wheel zooms. The position is fixed: there
+  is deliberately no walking down the street.
+- **The cropped iframe fallback** (no panorama id in the link, or the imagery
+  tiles aren't available — e.g. a user-contributed photosphere): Google's
+  keyless `svembed` iframe with its edge-anchored overlays cropped out of the
+  frame. Here Google draws street names and navigation arrows inside the
+  panorama itself, out of our reach — so prefer links with car coverage.
+
 ## Avatars
 
 Drop images into `avatars/` (png/jpg/webp/gif/svg) — the filename becomes the
@@ -102,3 +139,7 @@ changes).
 - Players who lose their session (phone browser killed) can reclaim their
   avatar from the join screen and keep their score.
 - Joining mid-round makes you a spectator until the next game.
+- Street View rounds are never sent to Slack as an image (a map link isn't a
+  photo Slack can render) — the link still appears in the message text.
+- The admin **Players** tab lists everyone who has ever scored, not just the
+  people currently in the room, and its scores are editable inline.

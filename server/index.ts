@@ -7,6 +7,7 @@ import type { ClientToServerEvents, ServerToClientEvents } from '../shared/event
 import { Game } from './game.js'
 import { searchRouter } from './search.js'
 import { setupSockets } from './sockets.js'
+import { streetViewRouter } from './streetview.js'
 import { uploadRouter } from './upload.js'
 
 const PORT = Number(process.env.PORT ?? 3000)
@@ -24,6 +25,7 @@ setupSockets(io, game)
 
 app.use('/api', uploadRouter)
 app.use('/api', searchRouter)
+app.use('/api', streetViewRouter)
 app.use('/avatars', express.static(path.join(ROOT, 'avatars'), { maxAge: '1d' }))
 app.use('/uploads', express.static(path.join(ROOT, 'uploads'), { maxAge: '1d' }))
 app.use(express.static(CLIENT_DIST))

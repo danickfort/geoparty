@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount, ref } from 'vue'
 import type { PreparedGame } from '@shared/types'
+import { isStreetViewUrl, parseStreetViewUrl } from '@shared/streetview'
+import StreetViewFrame from '@/components/StreetViewFrame.vue'
 
 defineProps<{ games: PreparedGame[]; loadedId: string | null }>()
 const emit = defineEmits<{
@@ -11,6 +13,15 @@ const emit = defineEmits<{
 
 /** Full-size preview (lightbox) of a game's photo + description. */
 const preview = ref<PreparedGame | null>(null)
+
+/**
+ * A Street View round has no thumbnail image to show (fetching one would need a
+ * Google API key), so the list shows a marker tile and the lightbox embeds the
+ * panorama itself.
+ */
+const previewStreetView = computed(() =>
+  preview.value ? parseStreetViewUrl(preview.value.imageUrl) : null,
+)
 
 function onKey(e: KeyboardEvent) {
   if (e.key === 'Escape') preview.value = null
@@ -23,7 +34,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
   <ul class="game-list">
     <li v-for="g in games" :key="g.id">
       <button class="thumb-btn" title="Preview image" @click="preview = g">
-        <img class="thumb" :src="g.imageUrl" alt="" loading="lazy" />
+        <span v-if="isStreetViewUrl(g.imageUrl)" class="thumb thumb-pano">🛣️</span>
+        <img v-else class="thumb" :src="g.imageUrl" alt="" loading="lazy" />
         <span class="zoom">🔍</span>
       </button>
       <div class="info">
@@ -46,7 +58,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
     <div v-if="preview" class="lightbox" @click.self="preview = null">
       <button class="close" aria-label="Close preview" @click="preview = null">✕</button>
       <figure>
-        <img :src="preview.imageUrl" :alt="preview.name" />
+        <StreetViewFrame v-if="previewStreetView" class="pano" :spec="previewStreetView" />
+        <img v-else :src="preview.imageUrl" :alt="preview.name" />
         <figcaption>
           <strong>{{ preview.name }}</strong>
           <p v-if="preview.description">{{ preview.description }}</p>
@@ -96,6 +109,15 @@ li {
   object-fit: cover;
   border-radius: var(--radius-sm);
   background: #05080f;
+}
+
+/* Street View rounds have no thumbnail to fetch — mark the tile instead. */
+.thumb-pano {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  line-height: 1;
 }
 
 .zoom {
@@ -169,6 +191,14 @@ li {
   max-width: 100%;
   max-height: 70vh;
   object-fit: contain;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+/* A panorama has no intrinsic size — give it the space a photo would take. */
+.lightbox .pano {
+  width: min(1000px, 94vw);
+  height: 70vh;
   border-radius: var(--radius);
   box-shadow: var(--shadow);
 }

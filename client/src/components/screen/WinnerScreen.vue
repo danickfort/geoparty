@@ -1,9 +1,16 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import confetti from 'canvas-confetti'
+import { parseStreetViewUrl } from '@shared/streetview'
 import { useGameStore } from '@/stores/game'
+import StreetViewFrame from '@/components/StreetViewFrame.vue'
 
 const game = useGameStore()
+
+// A round's image can be a Google Street View link instead of a photo.
+const streetView = computed(() =>
+  game.imageUrl ? parseStreetViewUrl(game.imageUrl) : null,
+)
 
 const winner = computed(() =>
   game.reveal?.winnerId ? game.playerById(game.reveal.winnerId) : undefined,
@@ -24,7 +31,8 @@ onMounted(() => {
   <div class="winner-screen">
     <p v-if="game.description" class="description pop-in">{{ game.description }}</p>
 
-    <img v-if="game.imageUrl" class="photo" :src="game.imageUrl" alt="The place" />
+    <StreetViewFrame v-if="streetView" class="pano" :spec="streetView" />
+    <img v-else-if="game.imageUrl" class="photo" :src="game.imageUrl" alt="The place" />
 
     <div class="banner pop-in">
       <template v-if="winner">
@@ -66,6 +74,16 @@ onMounted(() => {
   min-height: 0;
   max-width: 100%;
   object-fit: contain;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+/* A panorama has no intrinsic size, so it takes the row instead of being
+   letterboxed inside it like a photo. */
+.pano {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
   border-radius: var(--radius);
   box-shadow: var(--shadow);
 }
