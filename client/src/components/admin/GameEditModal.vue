@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import type { PreparedGame } from '@shared/types'
+import { isGoogleMapsUrl, parseStreetViewUrl } from '@shared/streetview'
 import AdminModal from '@/components/admin/AdminModal.vue'
 import AnswerPickerMap from '@/components/admin/AnswerPickerMap.vue'
+import StreetViewFrame from '@/components/StreetViewFrame.vue'
 
 const props = defineProps<{ game: PreparedGame }>()
 const emit = defineEmits<{ save: [game: PreparedGame]; close: [] }>()
@@ -22,6 +24,12 @@ const radiusKm = computed(() => {
 
 const valid = computed(() => !!draft.value.name.trim() && !!draft.value.imageUrl)
 
+// The image may be a Google Street View link rather than a photo.
+const streetView = computed(() => parseStreetViewUrl(draft.value.imageUrl))
+const photoUrl = computed(() =>
+  !streetView.value && !isGoogleMapsUrl(draft.value.imageUrl) ? draft.value.imageUrl : '',
+)
+
 function save() {
   emit('save', { ...draft.value, halfPointRadiusKm: radiusKm.value })
 }
@@ -34,10 +42,13 @@ function save() {
       <input v-model.trim="draft.name" type="text" />
     </label>
     <label class="field">
-      <span>Image URL</span>
+      <span>Image URL <em class="muted">(or a Google Street View link)</em></span>
       <input v-model.trim="draft.imageUrl" type="url" />
     </label>
-    <img v-if="draft.imageUrl" class="preview" :src="draft.imageUrl" alt="Preview" />
+    <div v-if="streetView" class="preview pano">
+      <StreetViewFrame :spec="streetView" />
+    </div>
+    <img v-else-if="photoUrl" class="preview" :src="photoUrl" alt="Preview" />
     <label class="field">
       <span>True location</span>
       <AnswerPickerMap v-model="draft.answer" :radius-km="radiusKm" />
@@ -78,5 +89,11 @@ function save() {
   object-fit: contain;
   border-radius: var(--radius-sm);
   background: #05080f;
+}
+
+/* A panorama has no intrinsic size — give the preview box a fixed one. */
+.preview.pano {
+  height: 180px;
+  overflow: hidden;
 }
 </style>

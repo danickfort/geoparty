@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import type { LatLng } from '@shared/types'
+import { isGoogleMapsUrl, isGoogleShortLink, parseStreetViewUrl } from '@shared/streetview'
 import { useAdminStore } from '@/stores/admin'
 import AnswerPickerMap from '@/components/admin/AnswerPickerMap.vue'
 import SaveTargetPicker from '@/components/admin/SaveTargetPicker.vue'
+import StreetViewFrame from '@/components/StreetViewFrame.vue'
 
 const admin = useAdminStore()
 
@@ -78,6 +80,57 @@ async function onFileChange(e: Event) {
   }
 }
 
+// ── Google Street View links ─────────────────────────────────────────────
+// A round's image may be a Street View link instead of a photo; the screen then
+// embeds the panorama. Short links (the mobile Share button) carry no
+// coordinates, so they're expanded server-side the moment one is pasted and the
+// full URL is what gets stored.
+const streetView = computed(() => parseStreetViewUrl(imageUrl.value))
+const expanding = ref(false)
+const expandError = ref<string | null>(null)
+
+/** A Google Maps link that points at the map, not at a panorama. */
+const mapsLinkNotPano = computed(
+  () =>
+    !streetView.value &&
+    !expanding.value &&
+    isGoogleMapsUrl(imageUrl.value) &&
+    !isGoogleShortLink(imageUrl.value),
+)
+
+/** Only a real photo URL may go into an <img> — map links would render broken. */
+const photoUrl = computed(() =>
+  !streetView.value && !isGoogleMapsUrl(imageUrl.value) ? imageUrl.value : '',
+)
+
+let expandTimer: ReturnType<typeof setTimeout> | undefined
+onBeforeUnmount(() => clearTimeout(expandTimer))
+
+watch(imageUrl, (url) => {
+  clearTimeout(expandTimer)
+  expandError.value = null
+  if (!isGoogleShortLink(url)) {
+    expanding.value = false
+    return
+  }
+  // Debounced so typing a link out by hand doesn't fire a request per keystroke.
+  expandTimer = setTimeout(async () => {
+    expanding.value = true
+    try {
+      const expanded = await admin.resolveLink(url)
+      // A late answer for a link the host has since replaced is dead weight.
+      // On success this re-runs the watcher, which clears `expanding`.
+      if (imageUrl.value === url) imageUrl.value = expanded
+      else expanding.value = false
+    } catch {
+      if (imageUrl.value !== url) return
+      expandError.value =
+        "Couldn't expand that short link. Open it in a browser and copy the full URL instead."
+      expanding.value = false
+    }
+  }, 400)
+})
+
 const canSave = computed(() => !!imageUrl.value && !!answer.value)
 const saved = computed(
   () =>
@@ -123,9 +176,20 @@ async function saveForLater() {
     <h3>🖼️ Round setup</h3>
 
     <label class="field">
-      <span>Image URL</span>
-      <input v-model.trim="imageUrl" type="url" placeholder="https://… or upload below" />
+      <span>Image URL <em class="muted">(or a Google Street View link)</em></span>
+      <input
+        v-model.trim="imageUrl"
+        type="url"
+        placeholder="https://… a photo, a Street View link, or upload below"
+      />
     </label>
+
+    <p v-if="expanding" class="muted hint-text">⏳ Expanding the short link…</p>
+    <p v-if="expandError" class="error-text">{{ expandError }}</p>
+    <p v-else-if="mapsLinkNotPano" class="error-text">
+      That's a Google Maps link, not a Street View one. Open it, drop into Street View, then copy
+      the URL from the address bar.
+    </p>
 
     <label class="upload btn">
       {{ uploading ? 'Uploading…' : '⬆️ Upload an image' }}
@@ -133,7 +197,16 @@ async function saveForLater() {
     </label>
     <p v-if="uploadError" class="error-text">{{ uploadError }}</p>
 
-    <img v-if="imageUrl" class="preview" :src="imageUrl" alt="Round image preview" />
+    <div v-if="streetView" class="preview pano">
+      <StreetViewFrame :spec="streetView" />
+    </div>
+    <img v-else-if="photoUrl" class="preview" :src="photoUrl" alt="Round image preview" />
+
+    <p v-if="streetView" class="muted hint-text">
+      🛣️ Street View, facing {{ Math.round(streetView.heading) }}° — that's where the big screen
+      starts. Drag to look around here or on the screen; the saved heading only changes if you
+      re-copy the URL from Google Maps.
+    </p>
 
     <label class="field">
       <span>True location</span>
@@ -197,6 +270,18 @@ async function saveForLater() {
   object-fit: contain;
   border-radius: var(--radius-sm);
   background: #05080f;
+}
+
+/* A panorama has no intrinsic size — give the preview box a fixed one. */
+.preview.pano {
+  height: 220px;
+  overflow: hidden;
+}
+
+.hint-text {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.4;
 }
 
 .save-later {

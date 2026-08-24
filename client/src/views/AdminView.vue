@@ -43,7 +43,8 @@ const tabs = computed(() => [
   { id: 'game' as Tab, label: game.phase === 'lobby' ? '🎮 Round' : '🗺️ Live', badge: null },
   { id: 'library' as Tab, label: '🗂️ Library', badge: libraryCount.value || null },
   { id: 'search' as Tab, label: '🔍 Find', badge: null },
-  { id: 'players' as Tab, label: '👥 Players', badge: game.players.length || null },
+  // The players tab lists the whole roster, so the badge counts it, not just the room.
+  { id: 'players' as Tab, label: '👥 Players', badge: game.scoreboard.length || null },
   { id: 'history' as Tab, label: '🕘 History', badge: admin.history.length || null },
 ])
 

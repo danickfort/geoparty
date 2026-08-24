@@ -171,6 +171,20 @@ export const useAdminStore = defineStore('admin', () => {
     return results
   }
 
+  /**
+   * Expand a Google maps short link (`maps.app.goo.gl/…`) into the full URL
+   * that carries the coordinates and heading. The shortener sends no CORS
+   * headers, so the server follows the redirect on our behalf.
+   */
+  async function resolveLink(url: string): Promise<string> {
+    const res = await fetch(`/api/resolve-link?url=${encodeURIComponent(url)}`, {
+      headers: { 'x-admin-password': password.value },
+    })
+    if (!res.ok) throw new Error(`resolve failed (${res.status})`)
+    const { url: expanded } = (await res.json()) as { url: string }
+    return expanded
+  }
+
   async function uploadImage(file: File): Promise<string> {
     const body = new FormData()
     body.append('image', file)
@@ -222,6 +236,7 @@ export const useAdminStore = defineStore('admin', () => {
     postToSlack,
     postGameToSlack,
     searchImages,
+    resolveLink,
     uploadImage,
   }
 })

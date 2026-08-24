@@ -1,10 +1,14 @@
+import { isStreetViewUrl } from '../shared/streetview.js'
+
 /**
  * A round image URL that Slack itself can fetch (to unfurl a preview): only
  * absolute http(s) URLs qualify — uploaded images are relative `/uploads/...`
- * paths served by this (usually non-public) server.
+ * paths served by this (usually non-public) server, and a Street View round is
+ * a map link, not an image Slack could render.
  */
 export function publicImageUrl(url: string | null | undefined): string | undefined {
-  return url && /^https?:\/\//i.test(url) ? url : undefined
+  if (!url || !/^https?:\/\//i.test(url)) return undefined
+  return isStreetViewUrl(url) ? undefined : url
 }
 
 /**
