@@ -7,6 +7,7 @@ import type {
   ImageSearchResult,
   LatLng,
   PreparedGame,
+  TeamSetup,
 } from '@shared/types'
 import type { Ack } from '@shared/events'
 import { socket } from '@/services/socket'
@@ -55,7 +56,9 @@ export const useAdminStore = defineStore('admin', () => {
     answer: LatLng,
     description: string,
     halfPointRadiusKm: number | null,
-  ) => socket.emit('admin:setRound', { imageUrl, answer, description, halfPointRadiusKm })
+    rivalCallouts: boolean,
+  ) =>
+    socket.emit('admin:setRound', { imageUrl, answer, description, halfPointRadiusKm, rivalCallouts })
   const startGuessing = () => socket.emit('admin:startGuessing')
   const startReveal = () => socket.emit('admin:startReveal')
   const revealNext = () => socket.emit('admin:revealNext')
@@ -66,6 +69,8 @@ export const useAdminStore = defineStore('admin', () => {
   const kickPlayer = (playerId: string) => socket.emit('admin:kickPlayer', { playerId })
   const resetScores = () => socket.emit('admin:resetScores')
   const setScores = (scores: Record<string, number>) => socket.emit('admin:setScores', { scores })
+  const setTeams = (teams: TeamSetup[]) =>
+    new Promise<boolean>((resolve) => socket.emit('admin:setTeams', { teams }, (r) => resolve(r.ok)))
 
   // ── prepared games ───────────────────────────────────────────────────
 
@@ -78,6 +83,7 @@ export const useAdminStore = defineStore('admin', () => {
     answer: LatLng
     description: string
     halfPointRadiusKm: number | null
+    rivalCallouts: boolean
   } | null>(null)
 
   const savePrepared = (payload: GameDraft) =>
@@ -95,6 +101,7 @@ export const useAdminStore = defineStore('admin', () => {
       answer: { ...game.answer },
       description: game.description,
       halfPointRadiusKm: game.halfPointRadiusKm ?? null,
+      rivalCallouts: game.rivalCallouts ?? true,
     }
   }
 
@@ -217,6 +224,7 @@ export const useAdminStore = defineStore('admin', () => {
     kickPlayer,
     resetScores,
     setScores,
+    setTeams,
     roundDraft,
     savePrepared,
     updatePrepared,

@@ -14,6 +14,7 @@ const draft = ref<PreparedGame>({
   ...props.game,
   answer: { ...props.game.answer },
   halfPointRadiusKm: props.game.halfPointRadiusKm ?? null,
+  rivalCallouts: props.game.rivalCallouts ?? true,
 })
 
 // The number input yields '' when cleared — normalize to a whole km or null.
@@ -63,6 +64,10 @@ function save() {
         placeholder="e.g. 250 — leave empty to disable"
       />
     </label>
+    <label class="check">
+      <input v-model="draft.rivalCallouts" type="checkbox" />
+      <span>⚔️ Rival call-outs</span>
+    </label>
     <label class="field">
       <span>Description</span>
       <textarea v-model="draft.description" rows="3"></textarea>
@@ -83,6 +88,22 @@ function save() {
   font-weight: 700;
   font-size: 0.9rem;
 }
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.check input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--accent);
+}
+
 
 .preview {
   max-height: 180px;

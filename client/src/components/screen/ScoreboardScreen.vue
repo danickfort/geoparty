@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import type { ScoreEntry } from '@shared/types'
 import { useGameStore } from '@/stores/game'
+import BadgeChips from '@/components/BadgeChips.vue'
 
 // `celebrate` is only set by the in-game scoreboard phase (the big screen).
 // The standalone /scoreboard view leaves it off: plain, live, no animation.
@@ -20,14 +21,27 @@ const showBadge = ref(false)
 const sameOrder = (a: ScoreEntry[], b: ScoreEntry[]) =>
   a.length === b.length && a.every((e, i) => e.avatar === b[i].avatar)
 
-// What each avatar just earned in the game that ended: the winner's full point
-// and half a point for everyone who landed inside the round's radius.
+// What each avatar just netted in the game that ended: the winner's full
+// point, half a point inside the round's radius, and duel bonuses/penalties.
+interface Gain {
+  net: number
+  duel: boolean
+}
 const gains = computed(() => {
-  const byAvatar = new Map<string, string>()
-  for (const avatar of game.halfPointAvatars) byAvatar.set(avatar, '+0.5')
-  if (game.winnerAvatar) byAvatar.set(game.winnerAvatar, '+1')
+  const byAvatar = new Map<string, Gain>()
+  const add = (avatar: string, n: number, duel = false) => {
+    const g = byAvatar.get(avatar) ?? { net: 0, duel: false }
+    byAvatar.set(avatar, { net: g.net + n, duel: g.duel || duel })
+  }
+  for (const avatar of game.halfPointAvatars) add(avatar, 0.5)
+  for (const avatar of game.winnerAvatars) add(avatar, 1)
+  for (const d of game.duels) {
+    if (d.won !== null) add(d.challengerAvatar, d.won ? 1 : -0.5, true)
+  }
   return byAvatar
 })
+const gainLabel = ({ net, duel }: Gain) =>
+  `${net > 0 ? '+' : ''}${String(net).replace('-', '−')}${duel ? ' ⚔️' : ''}`
 
 onMounted(() => {
   const current = game.scoreboard
@@ -63,21 +77,27 @@ watch(
         :class="{
           leader: i === 0 && p.score > 0,
           disconnected: !p.connected,
-          winner: celebrate && p.avatar === game.winnerAvatar,
+          winner: celebrate && game.winnerAvatars.includes(p.avatar),
         }"
       >
         <span class="rank">{{ medals[i] ?? `${i + 1}.` }}</span>
         <img :src="`/avatars/${p.avatar}`" :alt="p.name" />
-        <span class="name">{{ p.name }}</span>
+        <span class="name">
+          <span class="name-text">{{ p.name }}</span>
+          <BadgeChips :badges="game.badgesFor(p.avatar)" :show-label="celebrate" />
+        </span>
         <span class="score">
           {{ p.score }}
           <Transition name="badge">
             <span
               v-if="showBadge && celebrate && gains.has(p.avatar)"
               class="gain"
-              :class="{ half: p.avatar !== game.winnerAvatar }"
+              :class="{
+                half: gains.get(p.avatar)!.net > 0 && gains.get(p.avatar)!.net < 1,
+                loss: gains.get(p.avatar)!.net <= 0,
+              }"
             >
-              {{ gains.get(p.avatar) }}
+              {{ gainLabel(gains.get(p.avatar)!) }}
             </span>
           </Transition>
         </span>
@@ -154,8 +174,19 @@ h1 {
 
 .name {
   flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
   font-size: clamp(1.1rem, 2.6vw, 1.7rem);
   font-weight: 800;
+}
+
+@media (max-width: 700px) {
+  .name :deep(.label) {
+    display: none;
+  }
 }
 
 .score {
@@ -181,6 +212,14 @@ h1 {
   color: var(--accent);
   background: transparent;
   border: 2px solid var(--accent);
+  padding: 0 8px;
+}
+
+/* A lost duel that wiped out (or exceeded) the round's gains. */
+.gain.loss {
+  color: var(--hot);
+  background: transparent;
+  border: 2px solid var(--hot);
   padding: 0 8px;
 }
 

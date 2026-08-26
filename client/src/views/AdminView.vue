@@ -5,6 +5,7 @@ import { useAdminStore } from '@/stores/admin'
 import { useGameStore } from '@/stores/game'
 import AdminLogin from '@/components/admin/AdminLogin.vue'
 import RoundSetup from '@/components/admin/RoundSetup.vue'
+import TeamSetup from '@/components/admin/TeamSetup.vue'
 import GuessMonitor from '@/components/admin/GuessMonitor.vue'
 import PlayerList from '@/components/admin/PlayerList.vue'
 import PreparedGames from '@/components/admin/PreparedGames.vue'
@@ -28,6 +29,10 @@ const reveal = computed(() => admin.state?.reveal ?? null)
 const roundReady = computed(() => !!admin.state?.roundImageUrl && !!admin.state?.answer)
 const activeCount = computed(() => game.activePlayers.length)
 const lockedCount = computed(() => game.lockedPlayers.length)
+// Team games can't start while a team has nobody in the room.
+const emptyTeams = computed(() =>
+  game.teams.filter((t) => !game.membersOf(t.id).some((p) => p.connected)).length,
+)
 
 // ── tabs ─────────────────────────────────────────────────────────────────
 type Tab = 'game' | 'library' | 'search' | 'players' | 'history'
@@ -68,26 +73,32 @@ const mainAction = computed(() => {
     case 'lobby':
       return {
         label: '▶ Start game',
-        disabled: !roundReady.value || activeCount.value === 0,
+        disabled: !roundReady.value || activeCount.value === 0 || emptyTeams.value > 0,
         hint: !roundReady.value
           ? 'Set an image and its location first'
           : activeCount.value === 0
             ? 'Waiting for at least one player'
-            : `${activeCount.value} player${activeCount.value > 1 ? 's' : ''} ready`,
+            : emptyTeams.value > 0
+              ? 'Every team needs a connected player'
+              : game.teamMode
+                ? `${game.teams.length} teams ready — unassigned players will watch`
+                : `${activeCount.value} player${activeCount.value > 1 ? 's' : ''} ready`,
         run: admin.startGuessing,
       }
-    case 'guessing':
+    case 'guessing': {
+      const total = game.teamMode ? game.teams.length : activeCount.value
       return {
-        label: `🔒 Start reveal (${lockedCount.value}/${activeCount.value} locked)`,
+        label: `🔒 Start reveal (${lockedCount.value}/${total} locked)`,
         disabled: false,
         hint:
           lockedCount.value === 0
             ? 'Nobody has locked in yet!'
-            : lockedCount.value === activeCount.value
+            : lockedCount.value === total
               ? 'Everyone locked in — go!'
               : 'You can reveal early if needed',
         run: admin.startReveal,
       }
+    }
     case 'reveal': {
       const r = reveal.value
       if (r && r.revealedCount < r.total) {
@@ -164,7 +175,10 @@ const mainAction = computed(() => {
     </nav>
 
     <template v-if="tab === 'game'">
-      <RoundSetup v-if="game.phase === 'lobby'" />
+      <template v-if="game.phase === 'lobby'">
+        <RoundSetup />
+        <TeamSetup />
+      </template>
       <GuessMonitor v-else />
     </template>
 

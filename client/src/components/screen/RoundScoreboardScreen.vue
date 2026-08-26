@@ -12,6 +12,9 @@ interface Row {
   name: string
   distanceKm: number
   place: string | null
+  /** Team games: the team's colour and the other members' avatars. */
+  color: string | null
+  others: string[]
 }
 
 const rows = computed(() => {
@@ -19,13 +22,31 @@ const rows = computed(() => {
   return order
     .map((e) => {
       const player = game.playerById(e.playerId)
-      return player
-        ? { avatar: player.avatar, name: player.name, distanceKm: e.distanceKm, place: e.place }
-        : null
+      if (!player) return null
+      const team = game.teamById(e.teamId)
+      return {
+        avatar: player.avatar,
+        name: team ? `Team ${team.name}` : player.name,
+        distanceKm: e.distanceKm,
+        place: e.place,
+        color: team?.color ?? null,
+        others: team ? game.membersOf(team.id).filter((m) => m.id !== player.id).map((m) => m.avatar) : [],
+      }
     })
     .filter((r): r is Row => r !== null)
     .sort((a, b) => a.distanceKm - b.distanceKm)
 })
+
+// Net duel result per challenger this round (+1 per win, −0.5 per loss).
+const duelNet = computed(() => {
+  const net = new Map<string, number>()
+  for (const d of game.duels) {
+    if (d.won === null) continue
+    net.set(d.challengerAvatar, (net.get(d.challengerAvatar) ?? 0) + (d.won ? 1 : -0.5))
+  }
+  return net
+})
+const fmt = (n: number) => (n > 0 ? `+${n}` : `${n}`.replace('-', '−'))
 </script>
 
 <template>
@@ -40,9 +61,24 @@ const rows = computed(() => {
         :style="{ animationDelay: `${i * 0.08}s` }"
       >
         <span class="rank">{{ medals[i] ?? `${i + 1}.` }}</span>
-        <img :src="`/avatars/${r.avatar}`" :alt="r.name" />
+        <span class="faces">
+          <img :src="`/avatars/${r.avatar}`" :alt="r.name" :style="r.color ? { borderColor: r.color } : {}" />
+          <img
+            v-for="a in r.others"
+            :key="a"
+            class="other"
+            :src="`/avatars/${a}`"
+            alt=""
+            :style="r.color ? { borderColor: r.color } : {}"
+          />
+        </span>
         <span class="name">
-          {{ r.name }}
+          <span>
+            {{ r.name }}
+            <span v-if="duelNet.has(r.avatar)" class="duel" :class="{ lost: duelNet.get(r.avatar)! < 0 }">
+              ⚔️ {{ fmt(duelNet.get(r.avatar)!) }}
+            </span>
+          </span>
           <em v-if="r.place" class="place">near {{ r.place }}</em>
         </span>
         <span class="distance">{{ Math.round(r.distanceKm).toLocaleString() }} km</span>
@@ -97,6 +133,10 @@ h1 {
   font-weight: 800;
 }
 
+.faces {
+  display: flex;
+}
+
 .row img {
   width: 56px;
   height: 56px;
@@ -105,12 +145,36 @@ h1 {
   background: #fff;
 }
 
+.row img.other {
+  width: 40px;
+  height: 40px;
+  margin-left: -14px;
+  align-self: flex-end;
+}
+
 .name {
   flex: 1;
   font-size: clamp(1.1rem, 2.6vw, 1.7rem);
   font-weight: 800;
   display: flex;
   flex-direction: column;
+}
+
+.duel {
+  display: inline-block;
+  margin-left: 8px;
+  vertical-align: middle;
+  font-size: 0.6em;
+  font-weight: 900;
+  padding: 1px 8px;
+  border-radius: 999px;
+  color: #04120c;
+  background: var(--ok);
+}
+
+.duel.lost {
+  color: #fff;
+  background: var(--hot);
 }
 
 .place {

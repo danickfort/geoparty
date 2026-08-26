@@ -1,4 +1,12 @@
-import type { AdminState, GameDraft, LatLng, Player, PreparedGame, PublicState } from './types.js'
+import type {
+  AdminState,
+  GameDraft,
+  LatLng,
+  Player,
+  PreparedGame,
+  PublicState,
+  TeamSetup,
+} from './types.js'
 
 export interface Ack {
   ok: boolean
@@ -13,6 +21,9 @@ export interface ClientToServerEvents {
   'screen:register': () => void
   'player:join': (payload: { playerId: string; avatar: string }, ack: (r: JoinAck) => void) => void
   'player:lockIn': (guess: LatLng, ack: (r: Ack) => void) => void
+  'player:callOutRival': (payload: { targetAvatar: string }, ack: (r: Ack) => void) => void
+  /** Team games: a member's suggestion or the captain's live pin (fire-and-forget, throttled). */
+  'player:suggest': (pin: LatLng) => void
   'admin:login': (payload: { password: string }, ack: (r: Ack) => void) => void
   'admin:register': (payload: { password: string }, ack: (r: Ack) => void) => void
   'admin:setRound': (payload: {
@@ -20,7 +31,10 @@ export interface ClientToServerEvents {
     answer: LatLng
     description?: string
     halfPointRadiusKm?: number | null
+    rivalCallouts?: boolean
   }) => void
+  /** Replace the team assignment (lobby only); an empty list clears teams. */
+  'admin:setTeams': (payload: { teams: TeamSetup[] }, ack: (r: Ack) => void) => void
   'admin:startGuessing': () => void
   'admin:startReveal': () => void
   'admin:revealNext': () => void
@@ -64,4 +78,6 @@ export interface ServerToClientEvents {
   state: (s: PublicState) => void
   'admin:state': (s: AdminState) => void
   'player:kicked': () => void
+  /** Live pins of one team (sent only to that team's phones). */
+  'team:live': (payload: { pins: Record<string, LatLng> }) => void
 }

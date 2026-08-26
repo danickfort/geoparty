@@ -2,7 +2,8 @@ import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
-const backend = 'http://localhost:3000'
+// Backend port for the dev proxy; override with BACKEND_PORT when :3000 is taken.
+const backend = `http://localhost:${process.env.BACKEND_PORT ?? 3000}`
 
 export default defineConfig({
   root: 'client',

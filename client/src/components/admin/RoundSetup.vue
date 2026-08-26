@@ -13,6 +13,7 @@ const imageUrl = ref('')
 const answer = ref<LatLng | null>(null)
 const description = ref('')
 const halfPointRadiusKm = ref<number | null>(null)
+const rivalCallouts = ref(true)
 const uploading = ref(false)
 const uploadError = ref<string | null>(null)
 
@@ -31,6 +32,7 @@ watch(
     answer.value = { ...draft.answer }
     description.value = draft.description
     halfPointRadiusKm.value = draft.halfPointRadiusKm
+    rivalCallouts.value = draft.rivalCallouts
     admin.roundDraft = null
   },
   { immediate: true },
@@ -62,6 +64,15 @@ watch(
   () => admin.state?.roundHalfPointRadiusKm,
   (r) => {
     if (r != null && halfPointRadiusKm.value == null) halfPointRadiusKm.value = r
+  },
+  { immediate: true },
+)
+// A boolean has no "empty" state, so only mirror the server while a round is set
+// and the form hasn't been saved yet (refresh mid-setup).
+watch(
+  () => admin.state?.roundRivalCallouts,
+  (on) => {
+    if (on != null && admin.state?.roundImageUrl && !imageUrl.value) rivalCallouts.value = on
   },
   { immediate: true },
 )
@@ -140,12 +151,13 @@ const saved = computed(
     admin.state.answer.lat === answer.value?.lat &&
     admin.state.answer.lng === answer.value?.lng &&
     admin.state.roundDescription === description.value.trim() &&
-    admin.state.roundHalfPointRadiusKm === radiusKm.value,
+    admin.state.roundHalfPointRadiusKm === radiusKm.value &&
+    admin.state.roundRivalCallouts === rivalCallouts.value,
 )
 
 function save() {
   if (imageUrl.value && answer.value) {
-    admin.setRound(imageUrl.value, answer.value, description.value, radiusKm.value)
+    admin.setRound(imageUrl.value, answer.value, description.value, radiusKm.value, rivalCallouts.value)
   }
 }
 
@@ -163,6 +175,7 @@ async function saveForLater() {
     answer: answer.value,
     description: description.value,
     halfPointRadiusKm: radiusKm.value,
+    rivalCallouts: rivalCallouts.value,
   })
   if (ok) {
     savedForLater.value = true
@@ -224,6 +237,11 @@ async function saveForLater() {
       />
     </label>
 
+    <label class="check">
+      <input v-model="rivalCallouts" type="checkbox" />
+      <span>⚔️ Rival call-outs <em class="muted">(players may challenge a neighbour: +1 if closer, −0.5 if not)</em></span>
+    </label>
+
     <label class="field">
       <span>Description <em class="muted">(revealed with the winner)</em></span>
       <textarea
@@ -260,6 +278,22 @@ async function saveForLater() {
   font-weight: 700;
   font-size: 0.9rem;
 }
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.check input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--accent);
+}
+
 
 .upload {
   cursor: pointer;
