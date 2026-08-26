@@ -154,10 +154,17 @@ img[src*='/avatars/'] {
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  border: 3px solid var(--accent);
+  border: 3px solid var(--pin-color, var(--accent));
   background: #fff;
   overflow: hidden;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+}
+
+/* A teammate's suggestion: same face, clearly not the pin that counts. */
+.avatar-pin-wrap.faded .pin-inner {
+  opacity: 0.55;
+  transform: scale(0.8);
+  transform-origin: bottom center;
 }
 
 /* The extra .leaflet-marker-pane qualifier out-cascades Leaflet's own
@@ -176,7 +183,7 @@ img[src*='/avatars/'] {
   margin: -2px auto 0;
   border-left: 7px solid transparent;
   border-right: 7px solid transparent;
-  border-top: 12px solid var(--accent);
+  border-top: 12px solid var(--pin-color, var(--accent));
 }
 
 .winner-pin .avatar-pin {

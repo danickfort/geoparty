@@ -30,10 +30,33 @@ export const useGameStore = defineStore('game', () => {
   // Standings just before the last game's point landed — drives the reorder animation.
   const previousScoreboard = computed(() => state.value?.previousScoreboard ?? null)
   const winnerAvatar = computed(() => state.value?.winnerAvatar ?? null)
+  // Everyone who earned the full point: the winner, or the whole winning team.
+  const winnerAvatars = computed(() => state.value?.winnerAvatars ?? [])
+  // Team games: empty = solo play.
+  const teams = computed(() => state.value?.teams ?? [])
+  const teamMode = computed(() => teams.value.length > 0)
+  const teamById = (id: string | null | undefined) => (id ? teams.value.find((t) => t.id === id) : undefined)
+  const membersOf = (teamId: string) => players.value.filter((p) => p.teamId === teamId)
   // Avatars that picked up half a point inside the last round's radius.
   const halfPointAvatars = computed(() => state.value?.halfPointAvatars ?? [])
 
+  // History-derived titles by avatar (computed server-side, shared with Slack).
+  const badges = computed(() => state.value?.badges ?? {})
+  const badgesFor = (avatar: string) => badges.value[avatar] ?? []
+
   const playerById = (id: string) => players.value.find((p) => p.id === id)
+  const playerByAvatar = (avatar: string) => players.value.find((p) => p.avatar === avatar)
+
+  // Settled call-outs of the game that just ended (empty until the winner is crowned).
+  const duels = computed(() => state.value?.duels ?? [])
+  // Live call-outs: derived from who each player called out, dropping targets
+  // no longer in the room so a kicked rival's chip simply disappears.
+  const callouts = computed(() =>
+    players.value.flatMap((challenger) => {
+      const target = challenger.rivalAvatar ? playerByAvatar(challenger.rivalAvatar) : undefined
+      return target ? [{ challenger, target }] : []
+    }),
+  )
 
   return {
     state,
@@ -50,7 +73,17 @@ export const useGameStore = defineStore('game', () => {
     scoreboard,
     previousScoreboard,
     winnerAvatar,
+    winnerAvatars,
+    teams,
+    teamMode,
+    teamById,
+    membersOf,
     halfPointAvatars,
+    badges,
+    badgesFor,
+    duels,
+    callouts,
     playerById,
+    playerByAvatar,
   }
 })

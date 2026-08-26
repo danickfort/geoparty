@@ -4,6 +4,7 @@ import confetti from 'canvas-confetti'
 import { parseStreetViewUrl } from '@shared/streetview'
 import { useGameStore } from '@/stores/game'
 import StreetViewFrame from '@/components/StreetViewFrame.vue'
+import DuelChips from '@/components/screen/DuelChips.vue'
 
 const game = useGameStore()
 
@@ -16,11 +17,14 @@ const winner = computed(() =>
   game.reveal?.winnerId ? game.playerById(game.reveal.winnerId) : undefined,
 )
 const distanceKm = computed(() => game.reveal?.winnerDistanceKm)
+const winnerTeam = computed(() => game.teamById(game.reveal?.winnerTeamId))
+const teamMembers = computed(() => (winnerTeam.value ? game.membersOf(winnerTeam.value.id) : []))
 
 onMounted(() => {
   if (!winner.value) return
+  const colors = winnerTeam.value ? [winnerTeam.value.color, '#ffffff'] : undefined
   const blast = (x: number) =>
-    confetti({ particleCount: 120, spread: 75, origin: { x, y: 0.8 } })
+    confetti({ particleCount: 120, spread: 75, origin: { x, y: 0.8 }, colors })
   blast(0.2)
   blast(0.8)
   setTimeout(() => blast(0.5), 400)
@@ -35,7 +39,25 @@ onMounted(() => {
     <img v-else-if="game.imageUrl" class="photo" :src="game.imageUrl" alt="The place" />
 
     <div class="banner pop-in">
-      <template v-if="winner">
+      <template v-if="winner && winnerTeam">
+        <div class="team-avatars">
+          <img
+            v-for="m in teamMembers"
+            :key="m.id"
+            class="winner-avatar"
+            :src="`/avatars/${m.avatar}`"
+            :alt="m.name"
+            :style="{ borderColor: winnerTeam.color, boxShadow: `0 0 40px ${winnerTeam.color}88` }"
+          />
+        </div>
+        <div class="banner-text">
+          <h1 class="winner-name" :style="{ color: winnerTeam.color }">Team {{ winnerTeam.name }} wins! 🏆</h1>
+          <p v-if="distanceKm != null" class="winner-distance">
+            only {{ Math.round(distanceKm).toLocaleString() }} km away
+          </p>
+        </div>
+      </template>
+      <template v-else-if="winner">
         <img class="winner-avatar" :src="`/avatars/${winner.avatar}`" :alt="winner.name" />
         <div class="banner-text">
           <h1 class="winner-name">{{ winner.name }} wins! 🏆</h1>
@@ -46,6 +68,8 @@ onMounted(() => {
       </template>
       <h1 v-else class="winner-name">Nobody guessed 😅</h1>
     </div>
+
+    <DuelChips v-if="game.duels.length" :duels="game.duels" />
   </div>
 </template>
 
@@ -92,6 +116,14 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 22px;
+}
+
+.team-avatars {
+  display: flex;
+}
+
+.team-avatars .winner-avatar {
+  margin-right: -18px;
 }
 
 .winner-avatar {

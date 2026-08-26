@@ -8,7 +8,7 @@ const admin = useAdminStore()
 const emit = defineEmits<{ close: [] }>()
 
 const games = computed(() => admin.unpostedGames)
-const preview = computed(() => renderSlackMessage(games.value, admin.state?.scoreboard ?? []))
+const preview = computed(() => renderSlackMessage(games.value, admin.state?.scoreboard ?? [], admin.state?.badges ?? {}))
 
 const posting = ref(false)
 const error = ref<string | null>(null)

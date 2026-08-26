@@ -13,9 +13,16 @@ const markers = new Map<string, L.Marker>()
 let flagMarker: L.Marker | null = null
 let winnerLine: L.Polyline | null = null
 
-const toast = ref<{ playerId: string; name: string; distanceKm: number; avatar: string } | null>(
-  null,
-)
+const toast = ref<{
+  playerId: string
+  name: string
+  distanceKm: number
+  avatar: string
+  sub: string | null
+} | null>(null)
+
+/** Team of an entry (team games only). */
+const teamOf = (entry: RevealEntry) => game.teamById(entry.teamId)
 let toastTimer: ReturnType<typeof setTimeout> | undefined
 
 // Read the place live from state: it may resolve (geocoding) after the toast opens.
@@ -28,9 +35,11 @@ const toastPlace = computed(() => {
 function showToast(entry: RevealEntry) {
   const player = game.playerById(entry.playerId)
   if (!player) return
+  const team = teamOf(entry)
   toast.value = {
     playerId: entry.playerId,
-    name: player.name,
+    name: team ? `Team ${team.name}` : player.name,
+    sub: team ? `captain ${player.name}` : null,
     distanceKm: entry.distanceKm,
     avatar: player.avatar,
   }
@@ -43,7 +52,7 @@ function drawEntry(entry: RevealEntry, animate: boolean) {
   const player = game.playerById(entry.playerId)
   if (!m || !player || markers.has(entry.playerId)) return
   const marker = L.marker(entry.guess, {
-    icon: avatarIcon(player.avatar, { drop: animate }),
+    icon: avatarIcon(player.avatar, { drop: animate, color: teamOf(entry)?.color }),
   }).addTo(m)
   markers.set(entry.playerId, marker)
   if (animate) {
@@ -71,11 +80,12 @@ function drawAnswer(animate: boolean) {
     }).addTo(m)
     bounds.extend(circle.getBounds())
   }
-  for (const marker of markers.values()) {
+  for (const [playerId, marker] of markers) {
     bounds.extend(marker.getLatLng())
+    const entry = reveal.order.find((e) => e.playerId === playerId)
     // Dotted line from each guess to the true location.
     L.polyline([marker.getLatLng(), reveal.answer], {
-      color: '#8fa1c7',
+      color: (entry && teamOf(entry)?.color) || '#8fa1c7',
       weight: 2,
       dashArray: '4 10',
       opacity: 0.85,
@@ -132,6 +142,7 @@ const revealedCount = computed(() => game.reveal?.revealedCount ?? 0)
         <img :src="`/avatars/${toast.avatar}`" :alt="toast.name" />
         <div>
           <strong>{{ toast.name }}</strong>
+          <span v-if="toast.sub" class="place">{{ toast.sub }}</span>
           <span>{{ Math.round(toast.distanceKm).toLocaleString() }} km away</span>
           <span v-if="toastPlace" class="place">📍 near {{ toastPlace }}</span>
         </div>

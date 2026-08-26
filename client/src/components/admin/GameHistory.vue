@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { teamLabel } from '@shared/teams'
 import { reactive, ref } from 'vue'
 import { useAdminStore } from '@/stores/admin'
 
@@ -66,7 +67,7 @@ async function post(id: string, alreadyPosted: boolean) {
             :key="r.avatar"
             :class="{ won: r.avatar === game.winnerAvatar }"
           >
-            <span class="name">{{ r.name }}</span>
+            <span class="name">{{ teamLabel(game, r.teamId) ?? r.name }}</span>
             <span class="dist">{{ km(r.distanceKm) }}</span>
             <span v-if="r.place" class="place">{{ r.place }}</span>
           </li>

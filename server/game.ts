@@ -1,10 +1,13 @@
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
+import { computeBadges, type Badge } from '../shared/badges.js'
 import { haversineKm } from '../shared/geo.js'
+import { MAX_TEAMS, MIN_TEAMS, TEAM_PALETTE } from '../shared/teams.js'
 import type {
   AdminState,
   Collection,
+  Duel,
   GameDraft,
   GameRecord,
   LatLng,
@@ -12,8 +15,11 @@ import type {
   Player,
   PreparedGame,
   PublicState,
+  RevealEntry,
   RevealState,
   ScoreEntry,
+  Team,
+  TeamSetup,
 } from '../shared/types.js'
 import {
   deleteCollectionFile,
@@ -31,6 +37,16 @@ const AVATAR_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.s
 
 interface PlayerRecord extends Player {
   guess: LatLng | null
+  /** Team games: the pin currently on this phone's map (suggestion or the captain's draft). */
+  livePin: LatLng | null
+}
+
+/** Public view of a player: guess and live pin stay private, the rival list is per-player. */
+function toPublicPlayer(
+  { guess: _guess, livePin: _livePin, ...player }: PlayerRecord,
+  eligibleRivalAvatars: string[],
+): Player {
+  return { ...player, eligibleRivalAvatars }
 }
 
 /** "arctic-fox.png" -> "Arctic Fox" */
@@ -52,6 +68,14 @@ export class Game {
   answer: LatLng | null = null
   /** Guesses within this distance of the answer earn half a point. null = disabled. */
   halfPointRadiusKm: number | null = null
+  /** Whether players may call out a rival this round (default on). */
+  rivalCallouts = true
+  /** Settled call-outs of the game that just ended. */
+  duels: Duel[] = []
+  /** Teams for the current game; empty = solo play. Kept across games until cleared. */
+  teams: Team[] = []
+  /** Everyone who earned the full point in the game that just ended. */
+  winnerAvatars: string[] = []
   reveal: RevealState | null = null
   publicUrl = process.env.PUBLIC_URL ?? ''
   /** Standings snapshot from just before the current game awarded its point. */
@@ -66,6 +90,10 @@ export class Game {
   collections: Collection[]
   /** Traces of finished games (admin-only, persisted to data/history.json). */
   history: GameRecord[]
+  /** History-derived titles by avatar; recomputed whenever a game is recorded. */
+  badges: Record<string, Badge[]> = {}
+  /** Points handed out in the game that just ended, by avatar (goes into history). */
+  private pointsThisGame: Record<string, number> = {}
 
   private scores: Record<string, number>
 
@@ -74,6 +102,7 @@ export class Game {
     this.preparedGames = loadPreparedGames()
     this.collections = loadCollections()
     this.history = loadHistory()
+    this.refreshBadges()
     const dir = path.join(process.cwd(), 'avatars')
     try {
       this.avatars = fs
@@ -101,7 +130,7 @@ export class Game {
         existing.score = this.scores[avatar] ?? 0
       }
       existing.connected = true
-      return { ok: true, player: toPublicPlayer(existing) }
+      return { ok: true, player: this.publicPlayer(existing) }
     }
 
     const owner = this.avatarOwner(avatar)
@@ -109,10 +138,11 @@ export class Game {
       if (owner.connected) return { ok: false, error: 'avatar_taken' }
       // Reclaim: the phone lost its identity — adopt the disconnected record.
       this.players.delete(owner.id)
+      for (const t of this.teams) if (t.captainId === owner.id) t.captainId = playerId
       owner.id = playerId
       owner.connected = true
       this.players.set(playerId, owner)
-      return { ok: true, player: toPublicPlayer(owner) }
+      return { ok: true, player: this.publicPlayer(owner) }
     }
 
     const player: PlayerRecord = {
@@ -122,13 +152,21 @@ export class Game {
       connected: true,
       score: this.scores[avatar] ?? 0,
       lockedIn: false,
-      // Joining is open through the guessing phase; only once the reveal has
-      // started do newcomers wait for the next game.
-      spectator: this.phase !== 'lobby' && this.phase !== 'guessing',
+      // Joining is open through the guessing phase (solo games only — a team
+      // game's rosters are fixed); otherwise newcomers wait for the next game.
+      spectator: this.phase !== 'lobby' && (this.phase !== 'guessing' || this.teamMode),
+      teamId: null,
+      rivalAvatar: null,
+      eligibleRivalAvatars: [],
       guess: null,
+      livePin: null,
     }
     this.players.set(playerId, player)
-    return { ok: true, player: toPublicPlayer(player) }
+    return { ok: true, player: this.publicPlayer(player) }
+  }
+
+  private publicPlayer(player: PlayerRecord): Player {
+    return toPublicPlayer(player, this.eligibleRivals(player))
   }
 
   avatarOwner(avatar: string): PlayerRecord | undefined {
@@ -143,6 +181,7 @@ export class Game {
   }
 
   kick(playerId: string): boolean {
+    for (const t of this.teams) if (t.captainId === playerId) t.captainId = null
     return this.players.delete(playerId)
   }
 
@@ -151,10 +190,141 @@ export class Game {
     const player = this.players.get(playerId)
     if (!player || player.spectator) return { ok: false, error: 'not_playing' }
     if (player.lockedIn) return { ok: false, error: 'already_locked' }
+    if (this.teamMode && this.teamOf(player)?.captainId !== player.id) {
+      return { ok: false, error: 'not_captain' }
+    }
     if (!isValidLatLng(guess)) return { ok: false, error: 'bad_coords' }
     player.guess = guess
     player.lockedIn = true
     return { ok: true }
+  }
+
+  // ── teams ──────────────────────────────────────────────────────────────
+
+  get teamMode(): boolean {
+    return this.teams.length > 0
+  }
+
+  private teamOf(player: PlayerRecord): Team | undefined {
+    return player.teamId ? this.teams.find((t) => t.id === player.teamId) : undefined
+  }
+
+  private membersOf(teamId: string): PlayerRecord[] {
+    return [...this.players.values()].filter((p) => p.teamId === teamId)
+  }
+
+  /**
+   * Replace the team assignment (lobby only). Zero teams clears team mode;
+   * otherwise 2–4 teams on distinct palette slots, each player in at most one
+   * team, captains among their own members.
+   */
+  setTeams(setups: TeamSetup[]): boolean {
+    if (this.phase !== 'lobby' || !Array.isArray(setups)) return false
+    if (setups.length !== 0 && (setups.length < MIN_TEAMS || setups.length > MAX_TEAMS)) return false
+    const seenIndex = new Set<number>()
+    const seenPlayer = new Set<string>()
+    for (const s of setups) {
+      if (!Number.isInteger(s.index) || s.index < 0 || s.index >= TEAM_PALETTE.length) return false
+      if (seenIndex.has(s.index)) return false
+      seenIndex.add(s.index)
+      if (!Array.isArray(s.memberIds)) return false
+      for (const id of s.memberIds) {
+        if (typeof id !== 'string' || !this.players.has(id) || seenPlayer.has(id)) return false
+        seenPlayer.add(id)
+      }
+      if (s.captainId !== null && (typeof s.captainId !== 'string' || !s.memberIds.includes(s.captainId))) {
+        return false
+      }
+    }
+    for (const p of this.players.values()) p.teamId = null
+    this.teams = setups.map((s) => {
+      const id = `team-${s.index}`
+      for (const memberId of s.memberIds) this.players.get(memberId)!.teamId = id
+      return { id, ...TEAM_PALETTE[s.index], captainId: s.captainId ?? s.memberIds[0] ?? null }
+    })
+    return true
+  }
+
+  /** A member's suggestion or the captain's draft pin, shown live to the rest of the team. */
+  suggest(playerId: string, pin: LatLng): { ok: boolean; teamId?: string } {
+    if (this.phase !== 'guessing' || !this.teamMode) return { ok: false }
+    const player = this.players.get(playerId)
+    if (!player || player.spectator || !player.teamId || player.lockedIn) return { ok: false }
+    if (!isValidLatLng(pin)) return { ok: false }
+    player.livePin = pin
+    return { ok: true, teamId: player.teamId }
+  }
+
+  teamLivePins(teamId: string): Record<string, LatLng> {
+    const pins: Record<string, LatLng> = {}
+    for (const p of this.membersOf(teamId)) if (p.livePin) pins[p.id] = p.livePin
+    return pins
+  }
+
+  /** The players who score for a reveal entry: the guesser, or the whole team. */
+  private scoringMembers(entry: RevealEntry): PlayerRecord[] {
+    if (entry.teamId) return this.membersOf(entry.teamId)
+    const p = this.players.get(entry.playerId)
+    return p ? [p] : []
+  }
+
+  // ── rival call-outs ────────────────────────────────────────────────────
+
+  /**
+   * Who `me` may call out: connected non-spectators on the same score, or on
+   * the nearest distinct score above or below — so the duel is always between
+   * neighbours on the scoreboard, never a runaway leader vs. a newcomer.
+   */
+  private eligibleRivals(me: PlayerRecord): string[] {
+    if (this.phase !== 'guessing' || !this.rivalCallouts || this.teamMode) return []
+    if (me.spectator || me.lockedIn || me.rivalAvatar) return []
+    const others = [...this.players.values()].filter(
+      (p) => p.id !== me.id && !p.spectator && p.connected,
+    )
+    const scores = others.map((p) => p.score)
+    const above = Math.min(...scores.filter((s) => s > me.score)) // Infinity if none
+    const below = Math.max(...scores.filter((s) => s < me.score)) // -Infinity if none
+    return others
+      .filter((p) => p.score === me.score || p.score === above || p.score === below)
+      .map((p) => p.avatar)
+  }
+
+  callOutRival(playerId: string, targetAvatar: string): { ok: boolean; error?: string } {
+    if (this.phase !== 'guessing' || !this.rivalCallouts) return { ok: false, error: 'bad_phase' }
+    const player = this.players.get(playerId)
+    if (!player || player.spectator) return { ok: false, error: 'not_playing' }
+    if (player.lockedIn) return { ok: false, error: 'already_locked' }
+    if (player.rivalAvatar) return { ok: false, error: 'already_called_out' }
+    if (!this.eligibleRivals(player).includes(targetAvatar)) return { ok: false, error: 'not_eligible' }
+    player.rivalAvatar = targetAvatar
+    return { ok: true }
+  }
+
+  /** Settle every call-out against the revealed distances (+1 win, −0.5 loss, void = nothing). */
+  private resolveDuels(): Duel[] {
+    const distByAvatar = new Map<string, number>()
+    for (const e of this.reveal?.order ?? []) {
+      const p = this.players.get(e.playerId)
+      if (p) distByAvatar.set(p.avatar, e.distanceKm)
+    }
+    const nameOf = (avatar: string) => this.avatarOwner(avatar)?.name ?? nameFromAvatar(avatar)
+    const duels: Duel[] = []
+    for (const challenger of this.players.values()) {
+      if (!challenger.rivalAvatar) continue
+      const mine = distByAvatar.get(challenger.avatar)
+      const theirs = distByAvatar.get(challenger.rivalAvatar)
+      const won = mine === undefined || theirs === undefined ? null : mine < theirs
+      if (won === true) this.addPoints(challenger, 1)
+      if (won === false) this.addPoints(challenger, -0.5)
+      duels.push({
+        challengerAvatar: challenger.avatar,
+        challengerName: challenger.name,
+        targetAvatar: challenger.rivalAvatar,
+        targetName: nameOf(challenger.rivalAvatar),
+        won,
+      })
+    }
+    return duels
   }
 
   // ── admin transitions (invalid ones are ignored, returning false) ─────
@@ -164,18 +334,30 @@ export class Game {
     answer: LatLng,
     description = '',
     halfPointRadiusKm: number | null = null,
+    rivalCallouts = true,
   ): boolean {
     if (this.phase !== 'lobby' || !imageUrl || !isValidLatLng(answer)) return false
     this.imageUrl = imageUrl
     this.answer = answer
     this.description = description.trim()
     this.halfPointRadiusKm = sanitizeRadiusKm(halfPointRadiusKm)
+    this.rivalCallouts = rivalCallouts !== false
     return true
   }
 
   startGuessing(): boolean {
     if (this.phase !== 'lobby' || !this.imageUrl || !this.answer) return false
     if (![...this.players.values()].some((p) => p.connected)) return false
+    if (this.teamMode) {
+      // Every team needs someone in the room; a missing captain is replaced.
+      for (const t of this.teams) {
+        const present = this.membersOf(t.id).filter((p) => p.connected)
+        if (present.length === 0) return false
+        const captain = t.captainId ? this.players.get(t.captainId) : undefined
+        if (!captain || !captain.connected) t.captainId = present[0].id
+      }
+      for (const p of this.players.values()) if (!p.teamId) p.spectator = true
+    }
     this.phase = 'guessing'
     return true
   }
@@ -183,10 +365,15 @@ export class Game {
   startReveal(): boolean {
     if (this.phase !== 'guessing' || !this.answer) return false
     const answer = this.answer
-    const order = [...this.players.values()]
-      .filter((p) => p.lockedIn && p.guess)
+    // Solo: every locked guess. Teams: only captains' pins count.
+    const sources = this.teamMode
+      ? this.teams.flatMap((t) => (t.captainId ? [this.players.get(t.captainId)] : []))
+      : [...this.players.values()]
+    const order = sources
+      .filter((p): p is PlayerRecord => !!p && p.lockedIn && !!p.guess)
       .map((p) => ({
         playerId: p.id,
+        teamId: this.teamMode ? p.teamId : null,
         guess: p.guess!,
         distanceKm: haversineKm(p.guess!, answer),
         place: null, // resolved asynchronously (see geocode.ts)
@@ -202,7 +389,9 @@ export class Game {
       halfPointRadiusKm: this.halfPointRadiusKm,
       winnerId: null,
       winnerDistanceKm: null,
+      winnerTeamId: null,
     }
+    for (const p of this.players.values()) p.livePin = null
     this.phase = 'reveal'
     return true
   }
@@ -226,34 +415,55 @@ export class Game {
     // can animate the reorder it causes.
     this.previousScoreboard = this.getScoreboard()
     this.winnerAvatar = null
+    this.winnerAvatars = []
     this.halfPointAvatars = []
+    this.duels = []
+    this.pointsThisGame = {}
     const closest = this.reveal.order[this.reveal.order.length - 1]
     if (closest) {
       this.reveal.winnerId = closest.playerId
       this.reveal.winnerDistanceKm = closest.distanceKm
-      const winner = this.players.get(closest.playerId)
-      if (winner) {
-        winner.score++
-        this.scores[winner.avatar] = winner.score
-        this.winnerAvatar = winner.avatar
+      this.reveal.winnerTeamId = closest.teamId
+      // The pin's owner (the captain, in a team game) is the face of the win;
+      // the whole team shares the point.
+      this.winnerAvatar = this.players.get(closest.playerId)?.avatar ?? null
+      for (const member of this.scoringMembers(closest)) {
+        this.addPoints(member, 1)
+        this.winnerAvatars.push(member.avatar)
       }
       // Everyone else inside the half-point radius earns half a point.
       const radius = this.halfPointRadiusKm
       if (radius !== null) {
         for (const entry of this.reveal.order) {
-          if (entry.playerId === closest.playerId || entry.distanceKm > radius) continue
-          const player = this.players.get(entry.playerId)
-          if (!player) continue
-          player.score += 0.5
-          this.scores[player.avatar] = player.score
-          this.halfPointAvatars.push(player.avatar)
+          if (entry === closest || entry.distanceKm > radius) continue
+          for (const member of this.scoringMembers(entry)) {
+            this.addPoints(member, 0.5)
+            this.halfPointAvatars.push(member.avatar)
+          }
         }
       }
+      this.duels = this.resolveDuels()
       saveScores(this.scores)
     }
     this.recordHistory()
     this.phase = 'winner'
     return true
+  }
+
+  /**
+   * Award (or, for negative values, deduct) points, persisted by avatar and
+   * tracked for this game's history record. Scores never go below zero.
+   */
+  private addPoints(player: PlayerRecord, points: number): void {
+    const next = Math.max(0, player.score + points)
+    const delta = next - player.score
+    player.score = next
+    this.scores[player.avatar] = next
+    this.pointsThisGame[player.avatar] = (this.pointsThisGame[player.avatar] ?? 0) + delta
+  }
+
+  private refreshBadges(): void {
+    this.badges = computeBadges(this.history)
   }
 
   /** Capture a trace of the just-finished game (no-op if nobody guessed). */
@@ -268,9 +478,11 @@ export class Game {
         name: player?.name ?? nameFromAvatar(avatar),
         distanceKm: entry.distanceKm,
         place: entry.place,
+        ...(entry.teamId ? { teamId: entry.teamId } : {}),
       }
     })
     const winner = this.winnerAvatar ? results.find((r) => r.avatar === this.winnerAvatar) : undefined
+    const winnerTeam = this.teams.find((t) => t.id === this.reveal?.winnerTeamId)
     this.history.push({
       id: crypto.randomUUID(),
       playedAt: Date.now(),
@@ -283,9 +495,25 @@ export class Game {
       winnerDistanceKm: this.reveal.winnerDistanceKm,
       halfPointRadiusKm: this.halfPointRadiusKm,
       results,
+      points: this.pointsThisGame,
+      duels: this.duels,
+      ...(this.teamMode
+        ? {
+            teams: this.teams.map((t) => ({
+              id: t.id,
+              name: t.name,
+              color: t.color,
+              captainAvatar: (t.captainId && this.players.get(t.captainId)?.avatar) || '',
+              members: this.membersOf(t.id).map((m) => ({ avatar: m.avatar, name: m.name })),
+            })),
+            winnerTeamId: winnerTeam?.id ?? null,
+            winnerTeamName: winnerTeam?.name ?? null,
+          }
+        : {}),
       posted: false,
     })
     saveHistory(this.history)
+    this.refreshBadges()
   }
 
   getUnpostedGames(): GameRecord[] {
@@ -329,14 +557,21 @@ export class Game {
     this.description = ''
     this.answer = null
     this.halfPointRadiusKm = null
+    this.rivalCallouts = true
+    this.duels = []
     this.reveal = null
     this.previousScoreboard = null
     this.winnerAvatar = null
+    this.winnerAvatars = []
     this.halfPointAvatars = []
+    // Teams are kept for the next game (a team evening is several rounds); the
+    // admin clears them explicitly.
     for (const p of this.players.values()) {
       p.lockedIn = false
       p.guess = null
       p.spectator = false
+      p.rivalAvatar = null
+      p.livePin = null
     }
     return true
   }
@@ -381,6 +616,7 @@ export class Game {
       answer: { lat: draft.answer.lat, lng: draft.answer.lng },
       description: String(draft.description ?? '').trim(),
       halfPointRadiusKm: sanitizeRadiusKm(draft.halfPointRadiusKm),
+      rivalCallouts: draft.rivalCallouts !== false,
       createdAt: Date.now(),
     }
   }
@@ -403,6 +639,7 @@ export class Game {
     existing.answer = { lat: update.answer.lat, lng: update.answer.lng }
     existing.description = String(update.description ?? '').trim()
     existing.halfPointRadiusKm = sanitizeRadiusKm(update.halfPointRadiusKm)
+    existing.rivalCallouts = update.rivalCallouts !== false
     savePreparedGames(this.preparedGames)
     return true
   }
@@ -424,6 +661,7 @@ export class Game {
       prepared.answer,
       prepared.description,
       prepared.halfPointRadiusKm ?? null,
+      prepared.rivalCallouts ?? true,
     )
   }
 
@@ -478,6 +716,7 @@ export class Game {
     existing.answer = { lat: update.answer.lat, lng: update.answer.lng }
     existing.description = String(update.description ?? '').trim()
     existing.halfPointRadiusKm = sanitizeRadiusKm(update.halfPointRadiusKm)
+    existing.rivalCallouts = update.rivalCallouts !== false
     saveCollection(collection)
     return true
   }
@@ -498,7 +737,13 @@ export class Game {
       .find((c) => c.id === collectionId)
       ?.games.find((g) => g.id === gameId)
     if (!game) return false
-    return this.setRound(game.imageUrl, game.answer, game.description, game.halfPointRadiusKm ?? null)
+    return this.setRound(
+      game.imageUrl,
+      game.answer,
+      game.description,
+      game.halfPointRadiusKm ?? null,
+      game.rivalCallouts ?? true,
+    )
   }
 
   // ── snapshots ──────────────────────────────────────────────────────────
@@ -529,10 +774,12 @@ export class Game {
   toPublicState(): PublicState {
     return {
       phase: this.phase,
-      players: [...this.players.values()].map(toPublicPlayer),
+      players: [...this.players.values()].map((p) => this.publicPlayer(p)),
       scoreboard: this.getScoreboard(),
       previousScoreboard: this.previousScoreboard,
       winnerAvatar: this.winnerAvatar,
+      winnerAvatars: this.winnerAvatars,
+      teams: this.teams,
       halfPointAvatars: this.halfPointAvatars,
       avatars: this.avatars,
       imageUrl: this.phase === 'lobby' ? null : this.imageUrl,
@@ -542,6 +789,8 @@ export class Game {
           ? this.description || null
           : null,
       publicUrl: this.publicUrl,
+      badges: this.badges,
+      duels: this.duels,
       reveal: this.reveal && {
         ...this.reveal,
         // Only what has been revealed so far leaves the server.
@@ -565,6 +814,7 @@ export class Game {
       roundImageUrl: this.imageUrl,
       roundDescription: this.description,
       roundHalfPointRadiusKm: this.halfPointRadiusKm,
+      roundRivalCallouts: this.rivalCallouts,
       guesses,
       preparedGames: this.preparedGames,
       collections: this.collections,
@@ -573,10 +823,6 @@ export class Game {
       slackConfigured: Boolean(process.env.SLACK_WEBHOOK_URL),
     }
   }
-}
-
-function toPublicPlayer({ guess: _guess, ...player }: PlayerRecord): Player {
-  return player
 }
 
 /** Positive whole km or null — anything else (0, NaN, negatives) disables the radius. */

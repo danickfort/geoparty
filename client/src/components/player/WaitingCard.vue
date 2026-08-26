@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { useGameStore } from '@/stores/game'
 import { usePlayerStore } from '@/stores/player'
+import BadgeChips from '@/components/BadgeChips.vue'
 
 defineProps<{
   emoji: string
@@ -7,6 +9,7 @@ defineProps<{
   subtitle?: string
 }>()
 
+const game = useGameStore()
 const player = usePlayerStore()
 </script>
 
@@ -20,6 +23,7 @@ const player = usePlayerStore()
       <div>
         <strong>{{ player.me.name }}</strong>
         <span class="muted">{{ player.me.score }} pt{{ player.me.score === 1 ? '' : 's' }}</span>
+        <BadgeChips :badges="game.badgesFor(player.me.avatar)" />
       </div>
     </div>
   </div>

@@ -28,7 +28,11 @@ watchEffect(() => {
            appears (fresh join or reconnect inserts the element). -->
       <TransitionGroup name="avatars">
         <div v-for="p in game.connectedPlayers" :key="p.id" class="joined-player pop-in">
-          <img :src="`/avatars/${p.avatar}`" :alt="p.name" />
+          <img
+            :src="`/avatars/${p.avatar}`"
+            :alt="p.name"
+            :style="game.teamById(p.teamId) ? { borderColor: game.teamById(p.teamId)!.color } : {}"
+          />
           <span>{{ p.name }}</span>
         </div>
       </TransitionGroup>

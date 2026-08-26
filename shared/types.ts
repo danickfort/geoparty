@@ -1,3 +1,5 @@
+import type { Badge } from './badges.js'
+
 export type Phase = 'lobby' | 'guessing' | 'reveal' | 'winner' | 'roundResults' | 'scoreboard'
 
 export interface LatLng {
@@ -13,6 +15,45 @@ export interface Player {
   score: number
   lockedIn: boolean
   spectator: boolean
+  /** Team this player belongs to (team games only), else null. */
+  teamId: string | null
+  /** Avatar of the rival this player called out this round; final once set. */
+  rivalAvatar: string | null
+  /**
+   * Avatars this player may call out right now — "adjacent ranks": the same
+   * score, or the nearest distinct score above or below, among connected
+   * non-spectators. Server-computed; empty when call-outs are off, outside the
+   * guessing phase, once locked in, or once a call-out was made.
+   */
+  eligibleRivalAvatars: string[]
+}
+
+/** A team for the current game. `captainId` is the player whose pin counts. */
+export interface Team {
+  id: string
+  name: string
+  color: string
+  captainId: string | null
+}
+
+/** Admin's team assignment: a palette slot, its members and captain (player ids). */
+export interface TeamSetup {
+  index: number
+  captainId: string | null
+  memberIds: string[]
+}
+
+/** A rival call-out and its outcome, settled when the winner is crowned. */
+export interface Duel {
+  challengerAvatar: string
+  challengerName: string
+  targetAvatar: string
+  targetName: string
+  /**
+   * true = challenger strictly closer (+1); false = target closer or tie (−0.5
+   * for the challenger); null = void, a side never locked in (no points).
+   */
+  won: boolean | null
 }
 
 export interface ScoreEntry {
@@ -25,7 +66,10 @@ export interface ScoreEntry {
 }
 
 export interface RevealEntry {
+  /** In a team game this is the captain, whose pin is the team's guess. */
   playerId: string
+  /** Set when the entry is a team's guess. */
+  teamId: string | null
   guess: LatLng
   distanceKm: number
   /** Nearest named place ("Lyon, France") — resolved asynchronously, null until known. */
@@ -46,6 +90,8 @@ export interface RevealState {
   halfPointRadiusKm: number | null
   winnerId: string | null
   winnerDistanceKm: number | null
+  /** Winning team in a team game, else null. */
+  winnerTeamId: string | null
 }
 
 /** One player's result in a finished game (closest-first when listed). */
@@ -55,6 +101,17 @@ export interface GamePlayerResult {
   distanceKm: number
   /** Nearest named place of their guess ("Lyon, France"), null if unresolved. */
   place: string | null
+  /** The team this guess belonged to (team games only). */
+  teamId?: string
+}
+
+/** A team as it was in a finished game. */
+export interface GameTeamRecord {
+  id: string
+  name: string
+  color: string
+  captainAvatar: string
+  members: { avatar: string; name: string }[]
 }
 
 /**
@@ -77,6 +134,18 @@ export interface GameRecord {
   halfPointRadiusKm?: number | null
   /** Every player's result, closest-first (the winner is the first entry). */
   results: GamePlayerResult[]
+  /**
+   * Points awarded in this game by avatar (1 for the win, 0.5 per half point,
+   * plus any bonuses). Absent in older records — derive from the winner and
+   * the half-point radius instead (see shared/badges.ts pointsForGame).
+   */
+  points?: Record<string, number>
+  /** Rival call-outs made this game and how they went (absent in older records). */
+  duels?: Duel[]
+  /** Teams of a team game (absent for solo games and older records). */
+  teams?: GameTeamRecord[]
+  winnerTeamId?: string | null
+  winnerTeamName?: string | null
   posted: boolean
 }
 
@@ -89,6 +158,8 @@ export interface PreparedGame {
   description: string
   /** Half-point radius in km, null/absent = disabled (absent in older files). */
   halfPointRadiusKm?: number | null
+  /** Whether players may call out rivals; absent = enabled. */
+  rivalCallouts?: boolean
   /** ms since epoch, for stable ordering. */
   createdAt: number
 }
@@ -112,6 +183,8 @@ export interface GameDraft {
   description: string
   /** Half-point radius in km, null/absent = disabled. */
   halfPointRadiusKm?: number | null
+  /** Whether players may call out rivals; absent = enabled. */
+  rivalCallouts?: boolean
 }
 
 /** One hit from the backend web image search (Wikipedia articles + Wikimedia Commons photos). */
@@ -141,6 +214,10 @@ export interface PublicState {
   previousScoreboard: ScoreEntry[] | null
   /** Avatar of the player who won the game that just ended (for the score highlight). */
   winnerAvatar: string | null
+  /** Everyone who earned the full point: `[winnerAvatar]`, or every member of the winning team. */
+  winnerAvatars: string[]
+  /** Teams for the current game; empty = everyone plays solo. */
+  teams: Team[]
   /**
    * Avatars that earned half a point in the game that just ended by guessing
    * inside the round's radius (the winner is never listed here). Empty until a
@@ -155,6 +232,10 @@ export interface PublicState {
   description: string | null
   publicUrl: string
   reveal: RevealState | null
+  /** Titles derived from the game history, keyed by avatar (only holders appear). */
+  badges: Record<string, Badge[]>
+  /** Settled rival call-outs of the game that just ended; empty until the winner is crowned. */
+  duels: Duel[]
 }
 
 export interface AdminState extends PublicState {
@@ -163,6 +244,8 @@ export interface AdminState extends PublicState {
   roundDescription: string
   /** Half-point radius of the current round, null = disabled. */
   roundHalfPointRadiusKm: number | null
+  /** Whether rival call-outs are enabled for the current round. */
+  roundRivalCallouts: boolean
   /** Locked-in guesses by player id (admin eyes only before reveal). */
   guesses: Record<string, LatLng>
   /** Rounds prepared in advance, ready to be loaded. */

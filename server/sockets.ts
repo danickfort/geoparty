@@ -24,6 +24,19 @@ export function setupSockets(io: IO, game: Game): void {
   const checkAdmin = (password: string): boolean =>
     ADMIN_PASSWORD.length > 0 && password === ADMIN_PASSWORD
 
+  const teamRoom = (teamId: string) => `team:${teamId}`
+  /** Put every player socket in exactly its team's room (live pins stay within the team). */
+  const syncTeamRooms = () => {
+    for (const s of io.sockets.sockets.values()) {
+      if (!s.data.playerId) continue
+      for (const r of [...s.rooms]) if (r.startsWith('team:')) s.leave(r)
+      const teamId = game.players.get(s.data.playerId)?.teamId
+      if (teamId) s.join(teamRoom(teamId))
+    }
+  }
+  const emitTeamLive = (teamId: string) =>
+    io.to(teamRoom(teamId)).emit('team:live', { pins: game.teamLivePins(teamId) })
+
   const grantAdmin = (socket: AppSocket) => {
     socket.data.role = 'admin'
     socket.join('admins')
@@ -62,6 +75,13 @@ export function setupSockets(io: IO, game: Game): void {
       if (result.ok) {
         socket.data.role = 'player'
         socket.data.playerId = playerId
+        for (const r of [...socket.rooms]) if (r.startsWith('team:')) socket.leave(r)
+        const teamId = game.players.get(playerId)?.teamId
+        if (teamId) {
+          socket.join(teamRoom(teamId))
+          // A refreshed captain should see the suggestions already on the table.
+          socket.emit('team:live', { pins: game.teamLivePins(teamId) })
+        }
       }
       ack(result)
       if (result.ok) broadcast()
@@ -71,6 +91,21 @@ export function setupSockets(io: IO, game: Game): void {
       const playerId = socket.data.playerId
       if (!playerId) return ack({ ok: false, error: 'not_joined' })
       const result = game.lockIn(playerId, guess)
+      ack(result)
+      if (result.ok) broadcast()
+    })
+
+    socket.on('player:suggest', (pin) => {
+      const playerId = socket.data.playerId
+      if (!playerId) return
+      const result = game.suggest(playerId, pin)
+      if (result.ok && result.teamId) emitTeamLive(result.teamId)
+    })
+
+    socket.on('player:callOutRival', ({ targetAvatar }, ack) => {
+      const playerId = socket.data.playerId
+      if (!playerId) return ack({ ok: false, error: 'not_joined' })
+      const result = game.callOutRival(playerId, String(targetAvatar))
       ack(result)
       if (result.ok) broadcast()
     })
@@ -99,8 +134,17 @@ export function setupSockets(io: IO, game: Game): void {
         payload.answer,
         String(payload.description ?? ''),
         typeof payload.halfPointRadiusKm === 'number' ? payload.halfPointRadiusKm : null,
+        payload.rivalCallouts !== false,
       )
       if (ok) broadcast()
+    })
+    socket.on('admin:setTeams', ({ teams }, ack) => {
+      if (socket.data.role !== 'admin') return ack({ ok: false, error: 'unauthorized' })
+      const ok = game.setTeams(teams)
+      ack(ok ? { ok } : { ok, error: 'bad_teams' })
+      if (!ok) return
+      syncTeamRooms()
+      broadcast()
     })
     socket.on('admin:startGuessing', adminAction(() => game.startGuessing()))
     socket.on('admin:startReveal', () => {
@@ -156,7 +200,7 @@ export function setupSockets(io: IO, game: Game): void {
       if (games.length === 0) return ack({ ok: false, error: 'nothing_to_post' })
       // One image variable per post — use the most recent round that has a public one.
       const image = [...games].reverse().map((g) => publicImageUrl(g.imageUrl)).find(Boolean)
-      const result = await postToSlack(renderSlackMessage(games, game.getScoreboard()), image)
+      const result = await postToSlack(renderSlackMessage(games, game.getScoreboard(), game.badges), image)
       if (!result.ok) return ack(result)
       game.markGamesPosted(games.map((g) => g.id))
       ack({ ok: true })
@@ -168,7 +212,7 @@ export function setupSockets(io: IO, game: Game): void {
       const record = game.getGame(String(id))
       if (!record) return ack({ ok: false, error: 'not_found' })
       const result = await postToSlack(
-        renderSlackMessage([record], game.getScoreboard()),
+        renderSlackMessage([record], game.getScoreboard(), game.badges),
         publicImageUrl(record.imageUrl),
       )
       if (!result.ok) return ack(result)

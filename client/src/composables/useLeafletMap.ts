@@ -132,10 +132,15 @@ export function onSingleClick(map: L.Map, handler: (e: L.LeafletMouseEvent) => v
  * The drop animation lives on an INNER element: Leaflet positions the outer
  * one with an inline transform, which a CSS transform animation would override.
  */
-export function avatarIcon(avatar: string, opts: { drop?: boolean; winner?: boolean } = {}): L.DivIcon {
+export function avatarIcon(
+  avatar: string,
+  opts: { drop?: boolean; winner?: boolean; faded?: boolean; color?: string } = {},
+): L.DivIcon {
+  // `color` tints the ring/tail (team colour); `faded` marks a suggestion, not a guess.
+  const style = opts.color ? ` style="--pin-color:${opts.color}"` : ''
   return L.divIcon({
-    className: `avatar-pin-wrap${opts.winner ? ' winner-pin' : ''}`,
-    html: `<div class="pin-inner${opts.drop ? ' pin-drop' : ''}"><div class="avatar-pin"><img src="/avatars/${avatar}" alt=""></div><div class="avatar-pin-tail"></div></div>`,
+    className: `avatar-pin-wrap${opts.winner ? ' winner-pin' : ''}${opts.faded ? ' faded' : ''}`,
+    html: `<div class="pin-inner${opts.drop ? ' pin-drop' : ''}"${style}><div class="avatar-pin"><img src="/avatars/${avatar}" alt=""></div><div class="avatar-pin-tail"></div></div>`,
     iconSize: [48, 60],
     iconAnchor: [24, 60],
   })
