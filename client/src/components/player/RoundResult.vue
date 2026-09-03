@@ -73,7 +73,7 @@ const rows = computed<Row[]>(() => {
         duelDelta -= 0.5
       }
     } else if (d.targetAvatar === me.avatar) {
-      if (d.won === null) parts.push(`${d.challengerName}'s call-out void`)
+      if (d.won === null) parts.push(`${d.challengerName}'s duel void`)
       else parts.push(d.won ? `beaten by ${d.challengerName}` : `held off ${d.challengerName}`)
     }
   }

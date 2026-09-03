@@ -66,7 +66,7 @@ function save() {
     </label>
     <label class="check">
       <input v-model="draft.rivalCallouts" type="checkbox" />
-      <span>⚔️ Rival call-outs</span>
+      <span>⚔️ Rival duels</span>
     </label>
     <label class="field">
       <span>Description</span>

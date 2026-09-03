@@ -239,7 +239,7 @@ async function saveForLater() {
 
     <label class="check">
       <input v-model="rivalCallouts" type="checkbox" />
-      <span>⚔️ Rival call-outs <em class="muted">(players may challenge a neighbour: +1 if closer, −0.5 if not)</em></span>
+      <span>⚔️ Rival duels <em class="muted">(players may challenge a neighbour: +1 if closer, −0.5 if not)</em></span>
     </label>
 
     <label class="field">
