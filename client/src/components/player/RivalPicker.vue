@@ -1,15 +1,38 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onBeforeUnmount, ref } from 'vue'
 import { usePlayerStore } from '@/stores/player'
 
 // Full-screen step over the guess map: pick a neighbour on the scoreboard to
 // duel this round, or skip. The server decides who is within reach.
+// With `autoSkipSeconds` set (the round-start prompt), a countdown runs below
+// the list and skipping is chosen automatically when it hits zero.
+const props = defineProps<{ autoSkipSeconds?: number }>()
 const emit = defineEmits<{ close: [] }>()
 const player = usePlayerStore()
 const busy = ref(false)
 
+const secondsLeft = ref(props.autoSkipSeconds ?? 0)
+let ticker: ReturnType<typeof setInterval> | null = null
+if (props.autoSkipSeconds) {
+  ticker = setInterval(() => {
+    secondsLeft.value -= 1
+    if (secondsLeft.value <= 0) {
+      stopCountdown()
+      emit('close')
+    }
+  }, 1000)
+}
+
+function stopCountdown() {
+  if (ticker) clearInterval(ticker)
+  ticker = null
+}
+
+onBeforeUnmount(stopCountdown)
+
 async function pick(avatar: string) {
   if (busy.value) return
+  stopCountdown()
   busy.value = true
   const ok = await player.callOutRival(avatar)
   busy.value = false
@@ -20,8 +43,8 @@ async function pick(avatar: string) {
 <template>
   <div class="picker pop-in">
     <div class="emoji">⚔️</div>
-    <h2>Call out a rival?</h2>
-    <p class="muted">Beat their guess: <strong>+1</strong>. Lose: <strong>−0.5</strong>.</p>
+    <h2>Rival duels</h2>
+    <p class="muted">Challenge a neighbour. Beat their guess: <strong>+1</strong>. Lose: <strong>−0.5</strong>.</p>
 
     <div v-if="player.eligibleRivals.length" class="list">
       <button
@@ -40,6 +63,13 @@ async function pick(avatar: string) {
       </button>
     </div>
     <p v-else class="muted empty">Nobody within reach right now.</p>
+
+    <div v-if="autoSkipSeconds" class="countdown" role="timer" aria-live="polite">
+      <div class="bar">
+        <div class="fill" :style="{ width: `${(secondsLeft / autoSkipSeconds) * 100}%` }"></div>
+      </div>
+      <span class="muted">Skipping in <strong>{{ secondsLeft }}</strong>s…</span>
+    </div>
 
     <button class="btn skip" @click="emit('close')">No thanks</button>
   </div>
@@ -125,6 +155,36 @@ h2 {
 
 .empty {
   padding: 20px 0;
+}
+
+.countdown {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.countdown strong {
+  color: var(--text);
+}
+
+.bar {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 1s linear;
 }
 
 .skip {

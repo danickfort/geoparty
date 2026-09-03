@@ -28,15 +28,23 @@ const captainLocked = computed(() => captain.value?.lockedIn ?? false)
 /** The map freezes once the guess that counts is locked. */
 const frozen = computed(() => player.lockedIn || (isMember.value && captainLocked.value))
 
-// Offer the call-out step once on arrival (a reconnecting player who already
-// called someone out lands straight on the map); the button re-opens it later.
+// Offer the rival-duel step once on arrival (a reconnecting player who already
+// challenged someone lands straight on the map); the button re-opens it later.
+// Only the round-start prompt auto-skips after a countdown.
+const RIVAL_PICKER_SECONDS = 10
 const showPicker = ref(!player.rivalAvatar && player.eligibleRivals.length > 0)
+const pickerAutoSkip = ref(showPicker.value)
 watch(
   () => player.rivalAvatar,
   (a) => {
     if (a) showPicker.value = false
   },
 )
+
+function openPicker() {
+  pickerAutoSkip.value = false
+  showPicker.value = true
+}
 
 let marker: L.Marker | null = null
 
@@ -124,7 +132,11 @@ onBeforeUnmount(() => {
       <MapLayerToggle :map="map" />
     </div>
 
-    <RivalPicker v-if="showPicker" @close="showPicker = false" />
+    <RivalPicker
+      v-if="showPicker"
+      :auto-skip-seconds="pickerAutoSkip ? RIVAL_PICKER_SECONDS : undefined"
+      @close="showPicker = false"
+    />
 
     <div class="bottom-bar" :class="{ locked: frozen }">
       <div v-if="team" class="team-chip" :style="{ borderColor: team.color }">
@@ -146,11 +158,11 @@ onBeforeUnmount(() => {
         <button
           v-if="!player.rivalAvatar && player.eligibleRivals.length"
           class="btn callout-btn"
-          @click="showPicker = true"
+          @click="openPicker"
         >
-          ⚔️ Call out a rival
+          ⚔️ Duel a rival
         </button>
-        <p v-else-if="player.rival" class="hint rival-hint">⚔️ You called out {{ player.rival.name }}</p>
+        <p v-else-if="player.rival" class="hint rival-hint">⚔️ You challenged {{ player.rival.name }}</p>
         <button class="btn btn-primary lock-btn" :disabled="!player.pin" @click="player.lockIn()">
           🔒 Lock it in!
         </button>
