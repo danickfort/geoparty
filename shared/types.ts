@@ -43,6 +43,12 @@ export interface TeamSetup {
   memberIds: string[]
 }
 
+/**
+ * How long, from the start of the guessing phase, players may call out a rival.
+ * The client counts this down; the server rejects later call-outs.
+ */
+export const DUEL_WINDOW_SECONDS = 10
+
 /** A rival call-out and its outcome, settled when the winner is crowned. */
 export interface Duel {
   challengerAvatar: string
