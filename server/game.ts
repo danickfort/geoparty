@@ -4,6 +4,7 @@ import path from 'node:path'
 import { computeBadges, type Badge } from '../shared/badges.js'
 import { haversineKm } from '../shared/geo.js'
 import { MAX_TEAMS, MIN_TEAMS, TEAM_PALETTE } from '../shared/teams.js'
+import { DUEL_WINDOW_SECONDS } from '../shared/types.js'
 import type {
   AdminState,
   Collection,
@@ -70,6 +71,8 @@ export class Game {
   halfPointRadiusKm: number | null = null
   /** Whether players may call out a rival this round (default on). */
   rivalCallouts = true
+  /** When the guessing phase began; call-outs close DUEL_WINDOW_SECONDS later. */
+  guessingStartedAt: number | null = null
   /** Settled call-outs of the game that just ended. */
   duels: Duel[] = []
   /** Teams for the current game; empty = solo play. Kept across games until cleared. */
@@ -275,8 +278,17 @@ export class Game {
    * the nearest distinct score above or below — so the duel is always between
    * neighbours on the scoreboard, never a runaway leader vs. a newcomer.
    */
+  /**
+   * Call-outs are only open for the first seconds of the guessing phase — the
+   * prompt every player sees on arrival. A little slack covers network latency.
+   */
+  private duelWindowOpen(): boolean {
+    if (this.phase !== 'guessing' || !this.rivalCallouts || this.guessingStartedAt == null) return false
+    return Date.now() - this.guessingStartedAt <= (DUEL_WINDOW_SECONDS + 2) * 1000
+  }
+
   private eligibleRivals(me: PlayerRecord): string[] {
-    if (this.phase !== 'guessing' || !this.rivalCallouts || this.teamMode) return []
+    if (!this.duelWindowOpen() || this.teamMode) return []
     if (me.spectator || me.lockedIn || me.rivalAvatar) return []
     const others = [...this.players.values()].filter(
       (p) => p.id !== me.id && !p.spectator && p.connected,
@@ -290,7 +302,7 @@ export class Game {
   }
 
   callOutRival(playerId: string, targetAvatar: string): { ok: boolean; error?: string } {
-    if (this.phase !== 'guessing' || !this.rivalCallouts) return { ok: false, error: 'bad_phase' }
+    if (!this.duelWindowOpen()) return { ok: false, error: 'bad_phase' }
     const player = this.players.get(playerId)
     if (!player || player.spectator) return { ok: false, error: 'not_playing' }
     if (player.lockedIn) return { ok: false, error: 'already_locked' }
@@ -359,6 +371,7 @@ export class Game {
       for (const p of this.players.values()) if (!p.teamId) p.spectator = true
     }
     this.phase = 'guessing'
+    this.guessingStartedAt = Date.now()
     return true
   }
 
@@ -558,6 +571,7 @@ export class Game {
     this.answer = null
     this.halfPointRadiusKm = null
     this.rivalCallouts = true
+    this.guessingStartedAt = null
     this.duels = []
     this.reveal = null
     this.previousScoreboard = null

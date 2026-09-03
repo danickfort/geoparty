@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import L from 'leaflet'
-import type { LatLng } from '@shared/types'
+import { DUEL_WINDOW_SECONDS, type LatLng } from '@shared/types'
 import { avatarIcon, onSingleClick, useLeafletMap } from '@/composables/useLeafletMap'
 import { useGameStore } from '@/stores/game'
 import { usePlayerStore } from '@/stores/player'
@@ -28,23 +28,17 @@ const captainLocked = computed(() => captain.value?.lockedIn ?? false)
 /** The map freezes once the guess that counts is locked. */
 const frozen = computed(() => player.lockedIn || (isMember.value && captainLocked.value))
 
-// Offer the rival-duel step once on arrival (a reconnecting player who already
-// challenged someone lands straight on the map); the button re-opens it later.
-// Only the round-start prompt auto-skips after a countdown.
-const RIVAL_PICKER_SECONDS = 10
+// Offer the rival-duel step once on arrival, for the first seconds of the
+// round only; it auto-skips when the countdown ends and cannot be reopened.
+// A player arriving later (reconnect, late join) gets no rivals from the
+// server and lands straight on the map.
 const showPicker = ref(!player.rivalAvatar && player.eligibleRivals.length > 0)
-const pickerAutoSkip = ref(showPicker.value)
 watch(
   () => player.rivalAvatar,
   (a) => {
     if (a) showPicker.value = false
   },
 )
-
-function openPicker() {
-  pickerAutoSkip.value = false
-  showPicker.value = true
-}
 
 let marker: L.Marker | null = null
 
@@ -132,11 +126,7 @@ onBeforeUnmount(() => {
       <MapLayerToggle :map="map" />
     </div>
 
-    <RivalPicker
-      v-if="showPicker"
-      :auto-skip-seconds="pickerAutoSkip ? RIVAL_PICKER_SECONDS : undefined"
-      @close="showPicker = false"
-    />
+    <RivalPicker v-if="showPicker" :auto-skip-seconds="DUEL_WINDOW_SECONDS" @close="showPicker = false" />
 
     <div class="bottom-bar" :class="{ locked: frozen }">
       <div v-if="team" class="team-chip" :style="{ borderColor: team.color }">
@@ -155,14 +145,7 @@ onBeforeUnmount(() => {
         <p v-if="!player.pin" class="hint">
           👆 Tap the map to drop {{ team ? "your team's" : 'your' }} pin
         </p>
-        <button
-          v-if="!player.rivalAvatar && player.eligibleRivals.length"
-          class="btn callout-btn"
-          @click="openPicker"
-        >
-          ⚔️ Duel a rival
-        </button>
-        <p v-else-if="player.rival" class="hint rival-hint">⚔️ You challenged {{ player.rival.name }}</p>
+        <p v-if="player.rival" class="hint rival-hint">⚔️ You challenged {{ player.rival.name }}</p>
         <button class="btn btn-primary lock-btn" :disabled="!player.pin" @click="player.lockIn()">
           🔒 Lock it in!
         </button>
@@ -235,10 +218,6 @@ onBeforeUnmount(() => {
   width: 100%;
   font-size: 1.15rem;
   min-height: 54px;
-}
-
-.callout-btn {
-  width: 100%;
 }
 
 .rival-hint {
