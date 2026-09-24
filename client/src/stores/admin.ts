@@ -9,6 +9,7 @@ import type {
   PreparedGame,
   TeamSetup,
 } from '@shared/types'
+import { DEFAULT_TIMER_SECONDS } from '@shared/types'
 import type { Ack } from '@shared/events'
 import { socket } from '@/services/socket'
 
@@ -57,8 +58,16 @@ export const useAdminStore = defineStore('admin', () => {
     description: string,
     halfPointRadiusKm: number | null,
     rivalCallouts: boolean,
+    timerSeconds: number | null,
   ) =>
-    socket.emit('admin:setRound', { imageUrl, answer, description, halfPointRadiusKm, rivalCallouts })
+    socket.emit('admin:setRound', {
+      imageUrl,
+      answer,
+      description,
+      halfPointRadiusKm,
+      rivalCallouts,
+      timerSeconds,
+    })
   const startGuessing = () => socket.emit('admin:startGuessing')
   const startReveal = () => socket.emit('admin:startReveal')
   const revealNext = () => socket.emit('admin:revealNext')
@@ -84,6 +93,8 @@ export const useAdminStore = defineStore('admin', () => {
     description: string
     halfPointRadiusKm: number | null
     rivalCallouts: boolean
+    /** Seconds; null = no timer. */
+    timerSeconds: number | null
   } | null>(null)
 
   const savePrepared = (payload: GameDraft) =>
@@ -102,6 +113,7 @@ export const useAdminStore = defineStore('admin', () => {
       description: game.description,
       halfPointRadiusKm: game.halfPointRadiusKm ?? null,
       rivalCallouts: game.rivalCallouts ?? true,
+      timerSeconds: game.timerSeconds === undefined ? DEFAULT_TIMER_SECONDS : game.timerSeconds,
     }
   }
 

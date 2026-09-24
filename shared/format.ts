@@ -7,3 +7,10 @@ export function formatKm(km: number): string {
 export function formatPoints(points: number): string {
   return Number.isInteger(points) ? String(points) : points.toFixed(1)
 }
+
+/** Whole seconds as `m:ss` ("2:59"); never negative. */
+export function formatClock(totalSeconds: number): string {
+  const s = Math.max(0, Math.floor(totalSeconds))
+  const m = Math.floor(s / 60)
+  return `${m}:${String(s % 60).padStart(2, '0')}`
+}

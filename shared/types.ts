@@ -49,6 +49,28 @@ export interface TeamSetup {
  */
 export const DUEL_WINDOW_SECONDS = 10
 
+/** Default length of the guessing phase; null on a round means no timer. */
+export const DEFAULT_TIMER_SECONDS = 180
+/** Allowed round timer range in seconds; longer values are capped, shorter ones mean no timer. */
+export const MIN_TIMER_SECONDS = 10
+export const MAX_TIMER_SECONDS = 3600
+
+/**
+ * Normalise a timer value from a form or the wire: whole seconds, capped at
+ * the maximum; anything below the minimum (or not a number) means no timer.
+ */
+export function sanitizeTimerSeconds(value: unknown): number | null {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return null
+  const s = Math.round(value)
+  return s >= MIN_TIMER_SECONDS ? Math.min(s, MAX_TIMER_SECONDS) : null
+}
+
+/** The running countdown of the current guessing phase (server clock, ms since epoch). */
+export interface RoundTimer {
+  endsAt: number
+  seconds: number
+}
+
 /** A rival call-out and its outcome, settled when the winner is crowned. */
 export interface Duel {
   challengerAvatar: string
@@ -166,6 +188,8 @@ export interface PreparedGame {
   halfPointRadiusKm?: number | null
   /** Whether players may call out rivals; absent = enabled. */
   rivalCallouts?: boolean
+  /** Guessing-phase length in seconds; null = no timer; absent (older files) = default. */
+  timerSeconds?: number | null
   /** ms since epoch, for stable ordering. */
   createdAt: number
 }
@@ -191,6 +215,8 @@ export interface GameDraft {
   halfPointRadiusKm?: number | null
   /** Whether players may call out rivals; absent = enabled. */
   rivalCallouts?: boolean
+  /** Guessing-phase length in seconds; null = no timer; absent (older files) = default. */
+  timerSeconds?: number | null
 }
 
 /** One hit from the backend web image search (Wikipedia articles + Wikimedia Commons photos). */
@@ -242,6 +268,12 @@ export interface PublicState {
   badges: Record<string, Badge[]>
   /** Settled rival call-outs of the game that just ended; empty until the winner is crowned. */
   duels: Duel[]
+  /** Countdown of the guessing phase; null when the round has no timer or isn't guessing. */
+  timer: RoundTimer | null
+  /** True once the timer fired: lock-ins are closed, the host may start the reveal. */
+  timeUp: boolean
+  /** Server clock at broadcast time; clients derive an offset so phone clocks don't matter. */
+  serverNow: number
 }
 
 export interface AdminState extends PublicState {
@@ -252,6 +284,8 @@ export interface AdminState extends PublicState {
   roundHalfPointRadiusKm: number | null
   /** Whether rival call-outs are enabled for the current round. */
   roundRivalCallouts: boolean
+  /** Timer length of the current round in seconds, null = no timer. */
+  roundTimerSeconds: number | null
   /** Locked-in guesses by player id (admin eyes only before reveal). */
   guesses: Record<string, LatLng>
   /** Rounds prepared in advance, ready to be loaded. */

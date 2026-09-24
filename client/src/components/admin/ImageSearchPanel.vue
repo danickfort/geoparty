@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import type { ImageSearchResult } from '@shared/types'
+import { DEFAULT_TIMER_SECONDS, type ImageSearchResult } from '@shared/types'
 import { useAdminStore } from '@/stores/admin'
 import SaveTargetPicker from '@/components/admin/SaveTargetPicker.vue'
 
@@ -36,6 +36,7 @@ function useForRound(r: ImageSearchResult) {
     description: r.description ? `${r.title} — ${r.description}` : r.title,
     halfPointRadiusKm: null,
     rivalCallouts: true,
+    timerSeconds: DEFAULT_TIMER_SECONDS,
   }
 }
 

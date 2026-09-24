@@ -32,6 +32,8 @@ export interface ClientToServerEvents {
     description?: string
     halfPointRadiusKm?: number | null
     rivalCallouts?: boolean
+    /** Seconds; null = no timer; absent = the default. */
+    timerSeconds?: number | null
   }) => void
   /** Replace the team assignment (lobby only); an empty list clears teams. */
   'admin:setTeams': (payload: { teams: TeamSetup[] }, ack: (r: Ack) => void) => void
