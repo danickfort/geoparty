@@ -1,4 +1,4 @@
-import type { Badge } from './badges.js'
+import type { Badge, BadgeChange } from './badges.js'
 
 export type Phase = 'lobby' | 'guessing' | 'reveal' | 'winner' | 'roundResults' | 'scoreboard'
 
@@ -266,6 +266,8 @@ export interface PublicState {
   reveal: RevealState | null
   /** Titles derived from the game history, keyed by avatar (only holders appear). */
   badges: Record<string, Badge[]>
+  /** Titles that changed hands in the game that just ended; empty until the winner is crowned. */
+  badgeChanges: BadgeChange[]
   /** Settled rival call-outs of the game that just ended; empty until the winner is crowned. */
   duels: Duel[]
   /** Countdown of the guessing phase; null when the round has no timer or isn't guessing. */

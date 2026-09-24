@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useAdminStore } from '@/stores/admin'
 import { useGameStore } from '@/stores/game'
+import BadgeLegend from '@/components/BadgeLegend.vue'
 
 const admin = useAdminStore()
 const game = useGameStore()
@@ -152,9 +153,30 @@ function resetScores() {
     </ul>
     <p v-else class="muted">Nobody has joined yet.</p>
   </section>
+
+  <section class="card titles">
+    <h3>🏷️ Titles</h3>
+    <p class="muted titles-note">Earned from recent games and recomputed after each one — they change hands.</p>
+    <BadgeLegend class="titles-legend" />
+  </section>
 </template>
 
 <style scoped>
+.titles {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.titles-note {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.titles-legend {
+  flex-direction: column;
+}
+
 .players header {
   display: flex;
   align-items: center;

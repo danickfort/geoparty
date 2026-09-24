@@ -1,5 +1,7 @@
-/** Whole kilometres with thousands separators, e.g. "1,234 km". */
+/** Whole kilometres with thousands separators ("1,234 km"); metres below 1 km ("180 m"). */
 export function formatKm(km: number): string {
+  const metres = Math.round(km * 1000)
+  if (metres < 1000) return `${metres} m`
   return `${Math.round(km).toLocaleString('en-US')} km`
 }
 

@@ -85,6 +85,27 @@ const fmt = (n: number) => (n > 0 ? `+${n}` : `${n}`.replace('-', '−'))
       </div>
     </div>
     <p v-else class="empty">Nobody guessed this round 😅</p>
+
+    <section v-if="game.badgeChanges.length" class="titles">
+      <h2>🏷️ Titles</h2>
+      <div
+        v-for="(c, i) in game.badgeChanges"
+        :key="c.badge.id"
+        class="title-row pop-in"
+        :style="{ animationDelay: `${0.4 + i * 0.12}s` }"
+      >
+        <span class="emoji">{{ c.badge.emoji }}</span>
+        <strong>{{ c.badge.label }}</strong>
+        <template v-if="c.to">
+          <span class="arrow">→</span>
+          <img :src="`/avatars/${c.to}`" :alt="game.nameOfAvatar(c.to)" />
+          <strong>{{ game.nameOfAvatar(c.to) }}</strong>
+          <span v-if="c.badge.detail" class="muted">({{ c.badge.detail }})</span>
+          <span class="muted">{{ c.from ? `took it from ${game.nameOfAvatar(c.from)}` : 'new title' }}</span>
+        </template>
+        <span v-else class="muted">— {{ game.nameOfAvatar(c.from!) }} lost it</span>
+      </div>
+    </section>
   </div>
 </template>
 
@@ -193,5 +214,45 @@ h1 {
 .empty {
   font-size: clamp(1.2rem, 3vw, 2rem);
   color: var(--muted);
+}
+
+.titles {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.titles h2 {
+  font-size: clamp(1.2rem, 2.6vw, 1.8rem);
+}
+
+.title-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 18px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  font-size: clamp(1rem, 1.9vw, 1.4rem);
+  white-space: nowrap;
+}
+
+.title-row .emoji {
+  font-size: 1.3em;
+}
+
+.title-row img {
+  width: 1.8em;
+  height: 1.8em;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  background: #fff;
+}
+
+.arrow {
+  color: var(--accent);
+  font-weight: 900;
 }
 </style>
