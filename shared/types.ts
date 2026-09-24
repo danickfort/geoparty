@@ -219,6 +219,22 @@ export interface GameDraft {
   timerSeconds?: number | null
 }
 
+/** Nearest Street View panorama to a point, from `/api/pano-lookup`. */
+export interface PanoLookup {
+  panoId: string
+  lat: number
+  lng: number
+  /** Direction the capture car was facing — a sensible starting view. */
+  heading: number
+}
+
+/** One place-search hit from `/api/geocode` (Nominatim). */
+export interface GeocodeHit {
+  label: string
+  lat: number
+  lng: number
+}
+
 /** One hit from the backend web image search (Wikipedia articles + Wikimedia Commons photos). */
 export interface ImageSearchResult {
   title: string

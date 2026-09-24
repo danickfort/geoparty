@@ -127,6 +127,14 @@ Paste any of these and the panorama is recognised automatically:
 A plain Google Maps link that *isn't* in Street View is rejected with a hint —
 open it, drop into Street View, then copy the URL again.
 
+Don't have a link yet? The admin **Find** tab has a **Street View finder**: search a
+place or click the map, and the pin snaps to the nearest panorama and opens it in
+Google's embed so you can look around. *Use for round* hands the link to Round
+setup (pano id included, so the big screen uses the clean tile viewer below), or
+save it to your library. The pin is what counts — walking around inside the preview
+doesn't move the round; to use a spot further down the street, *Open in Google Maps*,
+walk there, and paste that URL into Round setup.
+
 The heading in the link is where the panorama starts, and the view is draggable
 with the mouse both in the admin preview and on the big screen.
 
