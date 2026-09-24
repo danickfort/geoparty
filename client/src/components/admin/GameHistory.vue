@@ -1,11 +1,11 @@
 <script setup lang="ts">
+import { formatKm } from '@shared/format'
 import { teamLabel } from '@shared/teams'
 import { reactive, ref } from 'vue'
 import { useAdminStore } from '@/stores/admin'
 
 const admin = useAdminStore()
 
-const km = (v: number) => `${Math.round(v).toLocaleString()} km`
 const when = (ms: number) =>
   new Date(ms).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
 
@@ -57,7 +57,7 @@ async function post(id: string, alreadyPosted: boolean) {
 
         <div v-if="game.winnerName" class="winner">
           🏆 {{ game.winnerName }} —
-          {{ game.winnerDistanceKm != null ? km(game.winnerDistanceKm) : '—' }}
+          {{ game.winnerDistanceKm != null ? formatKm(game.winnerDistanceKm) : '—' }}
         </div>
         <div v-else class="winner muted">No winner this round.</div>
 
@@ -68,7 +68,7 @@ async function post(id: string, alreadyPosted: boolean) {
             :class="{ won: r.avatar === game.winnerAvatar }"
           >
             <span class="name">{{ teamLabel(game, r.teamId) ?? r.name }}</span>
-            <span class="dist">{{ km(r.distanceKm) }}</span>
+            <span class="dist">{{ formatKm(r.distanceKm) }}</span>
             <span v-if="r.place" class="place">{{ r.place }}</span>
           </li>
         </ul>

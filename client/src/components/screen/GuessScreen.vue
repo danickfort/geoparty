@@ -4,6 +4,7 @@ import { parseStreetViewUrl } from '@shared/streetview'
 import { useGameStore } from '@/stores/game'
 import AvatarRail from '@/components/screen/AvatarRail.vue'
 import DuelChips from '@/components/screen/DuelChips.vue'
+import RoundTimer from '@/components/screen/RoundTimer.vue'
 import StreetViewFrame from '@/components/StreetViewFrame.vue'
 
 const game = useGameStore()
@@ -32,7 +33,10 @@ const callouts = computed(() =>
     <img v-else-if="game.imageUrl" class="photo" :src="game.imageUrl" alt="Where is this?" />
     <AvatarRail :players="leftLocked" side="left" />
     <AvatarRail :players="rightLocked" side="right" />
-    <DuelChips v-if="callouts.length" class="callouts" :duels="callouts" pending />
+    <div class="top-center">
+      <RoundTimer />
+      <DuelChips v-if="callouts.length" :duels="callouts" pending />
+    </div>
     <div v-if="game.teamMode" class="rosters">
       <div
         v-for="t in game.teams"
@@ -56,7 +60,8 @@ const callouts = computed(() =>
     </div>
     <div class="status">
       <h2>Where is this? 🤔</h2>
-      <p v-if="game.teamMode">
+      <p v-if="game.timeUp">⏰ Time's up! The reveal is coming…</p>
+      <p v-else-if="game.teamMode">
         <strong>{{ game.lockedPlayers.length }}</strong> / {{ game.teams.length }} teams locked in
       </p>
       <p v-else>
@@ -88,13 +93,19 @@ const callouts = computed(() =>
   inset: 0;
 }
 
-.callouts {
+/* Timer on top, duel chips below it — one column so they never overlap. */
+.top-center {
   position: absolute;
   top: 14px;
   left: 50%;
   transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
   max-width: 70vw;
   z-index: 1;
+  pointer-events: none;
 }
 
 .rosters {

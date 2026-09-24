@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import L from 'leaflet'
 import { DUEL_WINDOW_SECONDS, type LatLng } from '@shared/types'
 import { avatarIcon, onSingleClick, useLeafletMap } from '@/composables/useLeafletMap'
+import { useCountdown } from '@/composables/useCountdown'
 import { useGameStore } from '@/stores/game'
 import { usePlayerStore } from '@/stores/player'
 import MapLayerToggle from '@/components/player/MapLayerToggle.vue'
@@ -26,7 +27,15 @@ const captain = computed(() =>
 )
 const captainLocked = computed(() => captain.value?.lockedIn ?? false)
 /** The map freezes once the guess that counts is locked. */
-const frozen = computed(() => player.lockedIn || (isMember.value && captainLocked.value))
+const frozen = computed(
+  () => player.lockedIn || game.timeUp || (isMember.value && captainLocked.value),
+)
+
+// Round countdown, shown until this phone's guess is settled.
+const { secondsLeft, label: clock } = useCountdown(
+  computed(() => game.timer?.endsAt ?? null),
+  computed(() => game.serverOffset),
+)
 
 // Offer the rival-duel step once on arrival, for the first seconds of the
 // round only; it auto-skips when the countdown ends and cannot be reopened.
@@ -46,14 +55,16 @@ function placePin(latlng: L.LatLng) {
   if (frozen.value || !map.value) return
   const wrapped = latlng.wrap()
   player.pin = { lat: wrapped.lat, lng: wrapped.lng }
-  if (team.value) player.suggest(player.pin)
+  // The server tracks every pin: teammates see it live, and when the round
+  // timer runs out an unlocked pin is locked in automatically.
+  player.suggest(player.pin)
   if (!marker) {
     marker = L.marker(latlng, {
       icon: avatarIcon(player.avatar ?? '', { drop: true, faded: isMember.value, color: team.value?.color }),
       draggable: true,
     }).addTo(map.value)
     marker.on('drag', () => {
-      if (marker && team.value) player.suggest(marker.getLatLng().wrap())
+      if (marker) player.suggest(marker.getLatLng().wrap())
     })
     marker.on('dragend', () => {
       if (marker) placePin(marker.getLatLng())
@@ -134,7 +145,14 @@ onBeforeUnmount(() => {
         Team {{ team.name }}
         <span class="muted">· {{ isCaptain ? 'you are captain 👑' : `captain ${captain?.name ?? '…'}` }}</span>
       </div>
-      <template v-if="isMember">
+      <p v-if="game.timer && !frozen" class="clock" :class="{ urgent: secondsLeft <= 30 }">
+        ⏱ {{ clock }}
+      </p>
+      <p v-if="game.timeUp && !player.lockedIn && !(isMember && captainLocked)" class="locked-msg over">
+        ⏰ Time's up!
+        {{ isMember ? 'Watch the big screen…' : player.pin ? '' : 'No pin — you sit this one out.' }}
+      </p>
+      <template v-else-if="isMember">
         <p v-if="captainLocked" class="locked-msg">🔒 {{ captain?.name }} locked it in! Watch the big screen…</p>
         <p v-else class="hint">
           💡 {{ player.pin ? 'Drag to adjust your suggestion' : 'Tap the map to suggest a spot' }} —
@@ -224,6 +242,23 @@ onBeforeUnmount(() => {
   display: block;
   color: var(--hot);
   font-size: 0.95rem;
+}
+
+.clock {
+  margin: 0;
+  text-align: center;
+  font-weight: 900;
+  font-size: 1.4rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.clock.urgent {
+  color: var(--hot);
+}
+
+.locked-msg.over {
+  color: var(--accent);
 }
 
 .locked-msg {

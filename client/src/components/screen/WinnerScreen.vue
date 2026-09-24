@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import confetti from 'canvas-confetti'
+import { formatKm } from '@shared/format'
 import { parseStreetViewUrl } from '@shared/streetview'
 import { useGameStore } from '@/stores/game'
 import StreetViewFrame from '@/components/StreetViewFrame.vue'
@@ -53,7 +54,7 @@ onMounted(() => {
         <div class="banner-text">
           <h1 class="winner-name" :style="{ color: winnerTeam.color }">Team {{ winnerTeam.name }} wins! 🏆</h1>
           <p v-if="distanceKm != null" class="winner-distance">
-            only {{ Math.round(distanceKm).toLocaleString() }} km away
+            only {{ formatKm(distanceKm) }} away
           </p>
         </div>
       </template>
@@ -62,7 +63,7 @@ onMounted(() => {
         <div class="banner-text">
           <h1 class="winner-name">{{ winner.name }} wins! 🏆</h1>
           <p v-if="distanceKm != null" class="winner-distance">
-            only {{ Math.round(distanceKm).toLocaleString() }} km away
+            only {{ formatKm(distanceKm) }} away
           </p>
         </div>
       </template>

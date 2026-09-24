@@ -5,6 +5,7 @@ import express from 'express'
 import { Server } from 'socket.io'
 import type { ClientToServerEvents, ServerToClientEvents } from '../shared/events.js'
 import { Game } from './game.js'
+import { geocodeRouter } from './geocode.js'
 import { searchRouter } from './search.js'
 import { setupSockets } from './sockets.js'
 import { streetViewRouter } from './streetview.js'
@@ -26,6 +27,7 @@ setupSockets(io, game)
 app.use('/api', uploadRouter)
 app.use('/api', searchRouter)
 app.use('/api', streetViewRouter)
+app.use('/api', geocodeRouter)
 app.use('/avatars', express.static(path.join(ROOT, 'avatars'), { maxAge: '1d' }))
 app.use('/uploads', express.static(path.join(ROOT, 'uploads'), { maxAge: '1d' }))
 app.use(express.static(CLIENT_DIST))

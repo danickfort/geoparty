@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { formatPoints } from '@shared/format'
+import { formatKm, formatPoints } from '@shared/format'
 import { useGameStore } from '@/stores/game'
 import { usePlayerStore } from '@/stores/player'
 import BadgeChips from '@/components/BadgeChips.vue'
@@ -39,7 +39,16 @@ const myRank = computed(() => {
   return reveal.total - reveal.order.indexOf(myEntry.value)
 })
 
-const km = (v: number) => `${Math.round(v).toLocaleString()} km`
+
+// Titles I gained or lost in this game.
+const myBadgeChanges = computed(() =>
+  game.badgeChanges.filter((c) => c.to === player.me?.avatar || c.from === player.me?.avatar),
+)
+const changeText = (c: (typeof myBadgeChanges.value)[number]) => {
+  const title = `${c.badge.emoji} ${c.badge.label}`
+  if (c.to === player.me?.avatar) return `You earned ${title}!`
+  return c.to ? `You lost ${title} to ${game.nameOfAvatar(c.to)}` : `You lost ${title}`
+}
 
 // ── the tally ────────────────────────────────────────────────────────────
 interface Row {
@@ -128,13 +137,13 @@ onBeforeUnmount(() => timers.forEach(clearTimeout))
       <template v-if="isWinner">
         <div class="emoji">🏆</div>
         <h2>{{ winnerTeam ? `Team ${winnerTeam.name} wins!` : 'You won!' }}</h2>
-        <p v-if="myEntry" class="sub">{{ km(myEntry.distanceKm) }} from the spot</p>
+        <p v-if="myEntry" class="sub">{{ formatKm(myEntry.distanceKm) }} from the spot</p>
       </template>
       <template v-else-if="myEntry">
         <div class="emoji">📍</div>
         <h2>#{{ myRank }} this round</h2>
         <p class="sub">
-          {{ km(myEntry.distanceKm) }} away<template v-if="winnerLabel"> · {{ winnerLabel }} takes it</template>
+          {{ formatKm(myEntry.distanceKm) }} away<template v-if="winnerLabel"> · {{ winnerLabel }} takes it</template>
         </p>
       </template>
       <template v-else>
@@ -166,6 +175,18 @@ onBeforeUnmount(() => timers.forEach(clearTimeout))
 
       <Transition name="badges">
         <BadgeChips v-if="settled" :badges="game.badgesFor(player.me.avatar)" show-label />
+      </Transition>
+      <Transition name="badges">
+        <div v-if="settled && myBadgeChanges.length" class="title-changes">
+          <p
+            v-for="c in myBadgeChanges"
+            :key="c.badge.id"
+            class="title-change"
+            :class="{ lost: c.to !== player.me.avatar }"
+          >
+            {{ changeText(c) }}
+          </p>
+        </div>
       </Transition>
     </section>
 
@@ -322,6 +343,23 @@ h2 {
 
 .badges-enter-from {
   opacity: 0;
+}
+
+.title-changes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.title-change {
+  margin: 0;
+  font-weight: 800;
+  color: var(--ok);
+}
+
+.title-change.lost {
+  color: var(--hot);
 }
 
 .next {
