@@ -1,7 +1,7 @@
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
-import { computeBadges, type Badge } from '../shared/badges.js'
+import { computeBadges, diffBadges, type Badge, type BadgeChange } from '../shared/badges.js'
 import { haversineKm } from '../shared/geo.js'
 import { MAX_TEAMS, MIN_TEAMS, TEAM_PALETTE } from '../shared/teams.js'
 import { DEFAULT_TIMER_SECONDS, DUEL_WINDOW_SECONDS, sanitizeTimerSeconds } from '../shared/types.js'
@@ -104,6 +104,8 @@ export class Game {
   history: GameRecord[]
   /** History-derived titles by avatar; recomputed whenever a game is recorded. */
   badges: Record<string, Badge[]> = {}
+  /** Titles that changed hands in the game that just ended (empty until then). */
+  badgeChanges: BadgeChange[] = []
   /** Points handed out in the game that just ended, by avatar (goes into history). */
   private pointsThisGame: Record<string, number> = {}
 
@@ -578,7 +580,9 @@ export class Game {
       posted: false,
     })
     saveHistory(this.history)
+    const before = this.badges
     this.refreshBadges()
+    this.badgeChanges = diffBadges(before, this.badges)
   }
 
   getUnpostedGames(): GameRecord[] {
@@ -628,6 +632,7 @@ export class Game {
     this.timerSeconds = DEFAULT_TIMER_SECONDS
     this.timerEndsAt = null
     this.timeUp = false
+    this.badgeChanges = []
     this.duels = []
     this.reveal = null
     this.previousScoreboard = null
@@ -865,6 +870,7 @@ export class Game {
           : null,
       publicUrl: this.publicUrl,
       badges: this.badges,
+      badgeChanges: this.badgeChanges,
       duels: this.duels,
       timer:
         this.phase === 'guessing' && this.timerEndsAt !== null && this.timerSeconds

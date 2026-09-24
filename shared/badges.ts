@@ -22,17 +22,25 @@ export interface Badge extends BadgeDef {
   detail: string | null
 }
 
+/** A guess this close to the answer is "sniper-grade" and takes the Sniper badge. */
+export const SNIPER_KM = 25
+
 export const BADGES: Record<BadgeId, BadgeDef> = {
   champion: { id: 'champion', emoji: '👑', label: 'Reigning champ', description: 'Won the most recent game' },
-  streak: { id: 'streak', emoji: '🔥', label: 'Hot streak', description: 'Won the last games in a row' },
-  sniper: { id: 'sniper', emoji: '🎯', label: 'Sniper', description: 'Closest guess of the last 10 games' },
+  streak: { id: 'streak', emoji: '🔥', label: 'Hot streak', description: 'Won 2+ games in a row, and counting' },
+  sniper: {
+    id: 'sniper',
+    emoji: '🎯',
+    label: 'Sniper',
+    description: `Latest guess within ${SNIPER_KM} km of the answer`,
+  },
   bridesmaid: {
     id: 'bridesmaid',
     emoji: '🥈',
     label: 'Always the bridesmaid',
     description: 'Most 2nd places without a win in the last 10 games',
   },
-  climber: { id: 'climber', emoji: '📈', label: 'Climber', description: 'Biggest points gain over the last 5 games' },
+  climber: { id: 'climber', emoji: '📈', label: 'Climber', description: 'Most points gained over the last 5 games' },
 }
 
 /** Display order of chips. */
@@ -102,15 +110,18 @@ const RULES: Record<BadgeId, Rule> = {
   },
 
   sniper(recent) {
-    // Oldest → newest with a strict "<" so ties go to whoever did it first.
-    const window = recent.slice(0, SNIPER_WINDOW).reverse()
-    let best: { avatar: string; km: number } | null = null
-    for (const g of window) {
+    // Newest game first: the most recent sniper-grade guess takes the title,
+    // whoever held it before. Within one game the closer guess wins.
+    for (const g of recent.slice(0, SNIPER_WINDOW)) {
+      let best: { avatar: string; km: number } | null = null
       for (const r of g.results) {
-        if (!best || r.distanceKm < best.km) best = { avatar: r.avatar, km: r.distanceKm }
+        if (r.distanceKm <= SNIPER_KM && (!best || r.distanceKm < best.km)) {
+          best = { avatar: r.avatar, km: r.distanceKm }
+        }
       }
+      if (best) return [award(best.avatar, 'sniper', formatKm(best.km))]
     }
-    return best ? [award(best.avatar, 'sniper', formatKm(best.km))] : []
+    return []
   },
 
   bridesmaid(recent) {
@@ -157,4 +168,41 @@ export function computeBadges(history: GameRecord[]): Record<string, Badge[]> {
     }
   }
   return byAvatar
+}
+
+/** A badge changing hands (or appearing / disappearing) between two computations. */
+export interface BadgeChange {
+  /** The badge as its new holder has it (or as the previous holder had it, if nobody does now). */
+  badge: Badge
+  /** Previous holder's avatar, null if nobody held it. */
+  from: string | null
+  /** New holder's avatar, null if nobody holds it now. */
+  to: string | null
+}
+
+function holderOf(badges: Record<string, Badge[]>, id: BadgeId): [string, Badge] | null {
+  for (const [avatar, list] of Object.entries(badges)) {
+    const badge = list.find((b) => b.id === id)
+    if (badge) return [avatar, badge]
+  }
+  return null
+}
+
+/** Which badges moved between `before` and `after`, in display order. */
+export function diffBadges(
+  before: Record<string, Badge[]>,
+  after: Record<string, Badge[]>,
+): BadgeChange[] {
+  const changes: BadgeChange[] = []
+  for (const id of BADGE_ORDER) {
+    const prev = holderOf(before, id)
+    const next = holderOf(after, id)
+    if (prev?.[0] === next?.[0]) continue
+    changes.push({
+      badge: next?.[1] ?? prev?.[1] ?? { ...BADGES[id], detail: null },
+      from: prev?.[0] ?? null,
+      to: next?.[0] ?? null,
+    })
+  }
+  return changes
 }

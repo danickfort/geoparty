@@ -41,6 +41,16 @@ const myRank = computed(() => {
 
 const km = (v: number) => `${Math.round(v).toLocaleString()} km`
 
+// Titles I gained or lost in this game.
+const myBadgeChanges = computed(() =>
+  game.badgeChanges.filter((c) => c.to === player.me?.avatar || c.from === player.me?.avatar),
+)
+const changeText = (c: (typeof myBadgeChanges.value)[number]) => {
+  const title = `${c.badge.emoji} ${c.badge.label}`
+  if (c.to === player.me?.avatar) return `You earned ${title}!`
+  return c.to ? `You lost ${title} to ${game.nameOfAvatar(c.to)}` : `You lost ${title}`
+}
+
 // ── the tally ────────────────────────────────────────────────────────────
 interface Row {
   icon: string
@@ -166,6 +176,18 @@ onBeforeUnmount(() => timers.forEach(clearTimeout))
 
       <Transition name="badges">
         <BadgeChips v-if="settled" :badges="game.badgesFor(player.me.avatar)" show-label />
+      </Transition>
+      <Transition name="badges">
+        <div v-if="settled && myBadgeChanges.length" class="title-changes">
+          <p
+            v-for="c in myBadgeChanges"
+            :key="c.badge.id"
+            class="title-change"
+            :class="{ lost: c.to !== player.me.avatar }"
+          >
+            {{ changeText(c) }}
+          </p>
+        </div>
       </Transition>
     </section>
 
@@ -322,6 +344,23 @@ h2 {
 
 .badges-enter-from {
   opacity: 0;
+}
+
+.title-changes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.title-change {
+  margin: 0;
+  font-weight: 800;
+  color: var(--ok);
+}
+
+.title-change.lost {
+  color: var(--hot);
 }
 
 .next {

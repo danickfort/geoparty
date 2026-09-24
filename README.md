@@ -31,6 +31,24 @@ up across games.
 4. **Again** — scoreboard on demand, then *New game* loops back to the lobby.
    Players and scores are kept (scores even survive a server restart).
 
+## Badges
+
+Titles derived from the recent game history (`data/history.json`), recomputed after
+every game and shown next to names on the scoreboard, on phones and in Slack. They
+change hands — that's the point.
+
+| Badge | Rule |
+|---|---|
+| 👑 Reigning champ | Won the most recent game |
+| 🔥 Hot streak | Won 2+ games in a row, and counting |
+| 🎯 Sniper | Latest guess within 25 km of the answer (last 10 games): any new guess inside 25 km takes it |
+| 🥈 Always the bridesmaid | Most 2nd places (at least 2) in the last 10 games without winning any of them |
+| 📈 Climber | Most points gained over the last 5 games |
+
+A tie for Bridesmaid or Climber leaves that badge unawarded. The end-of-round tally on the big screen lists every
+title that changed hands, and each phone says which titles its player won or lost.
+The admin **Players** tab and the big-screen scoreboard show this legend too.
+
 ## Development
 
 ```sh

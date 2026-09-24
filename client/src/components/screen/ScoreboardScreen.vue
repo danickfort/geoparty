@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import type { ScoreEntry } from '@shared/types'
 import { useGameStore } from '@/stores/game'
 import BadgeChips from '@/components/BadgeChips.vue'
+import BadgeLegend from '@/components/BadgeLegend.vue'
 
 // `celebrate` is only set by the in-game scoreboard phase (the big screen).
 // The standalone /scoreboard view leaves it off: plain, live, no animation.
@@ -67,7 +68,7 @@ watch(
 </script>
 
 <template>
-  <div class="scoreboard">
+  <div class="scoreboard" :class="{ 'with-legend': celebrate }">
     <h1>🏆 Scoreboard</h1>
     <TransitionGroup tag="div" name="rank" class="rows">
       <div
@@ -103,6 +104,7 @@ watch(
         </span>
       </div>
     </TransitionGroup>
+    <BadgeLegend v-if="celebrate" class="legend" />
   </div>
 </template>
 
@@ -128,6 +130,17 @@ h1 {
   width: min(640px, 92vw);
   max-height: 70vh;
   overflow-y: auto;
+}
+
+/* Leave room under the rows for the badge legend. */
+.with-legend .rows {
+  max-height: 58vh;
+}
+
+.legend {
+  justify-content: center;
+  max-width: min(1100px, 92vw);
+  font-size: clamp(0.85rem, 1.4vw, 1.1rem);
 }
 
 .row {

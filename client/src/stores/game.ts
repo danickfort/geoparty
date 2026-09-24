@@ -48,6 +48,17 @@ export const useGameStore = defineStore('game', () => {
   // History-derived titles by avatar (computed server-side, shared with Slack).
   const badges = computed(() => state.value?.badges ?? {})
   const badgesFor = (avatar: string) => badges.value[avatar] ?? []
+  // Titles that changed hands in the game that just ended.
+  const badgeChanges = computed(() => state.value?.badgeChanges ?? [])
+  /** Display name for any avatar, including past players no longer in the room. */
+  const nameOfAvatar = (avatar: string) =>
+    scoreboard.value.find((e) => e.avatar === avatar)?.name ??
+    avatar
+      .replace(/\.[^.]+$/, '')
+      .split(/[-_\s]+/)
+      .filter(Boolean)
+      .map((w) => w[0].toUpperCase() + w.slice(1))
+      .join(' ')
 
   // Round countdown (null = no timer, or not guessing) and whether it ran out.
   const timer = computed(() => state.value?.timer ?? null)
@@ -90,6 +101,8 @@ export const useGameStore = defineStore('game', () => {
     halfPointAvatars,
     badges,
     badgesFor,
+    badgeChanges,
+    nameOfAvatar,
     duels,
     callouts,
     timer,
