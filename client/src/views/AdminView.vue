@@ -11,6 +11,7 @@ import PlayerList from '@/components/admin/PlayerList.vue'
 import PreparedGames from '@/components/admin/PreparedGames.vue'
 import CollectionsPanel from '@/components/admin/CollectionsPanel.vue'
 import ImageSearchPanel from '@/components/admin/ImageSearchPanel.vue'
+import StreetViewFinder from '@/components/admin/StreetViewFinder.vue'
 import GameHistory from '@/components/admin/GameHistory.vue'
 import SlackPostModal from '@/components/admin/SlackPostModal.vue'
 
@@ -87,6 +88,14 @@ const mainAction = computed(() => {
       }
     case 'guessing': {
       const total = game.teamMode ? game.teams.length : activeCount.value
+      if (game.timeUp) {
+        return {
+          label: `⏰ Time's up — start reveal (${lockedCount.value}/${total} locked)`,
+          disabled: false,
+          hint: 'Unlocked pins were locked in automatically',
+          run: admin.startReveal,
+        }
+      }
       return {
         label: `🔒 Start reveal (${lockedCount.value}/${total} locked)`,
         disabled: false,
@@ -187,7 +196,10 @@ const mainAction = computed(() => {
       <PreparedGames />
     </template>
 
-    <ImageSearchPanel v-else-if="tab === 'search'" />
+    <template v-else-if="tab === 'search'">
+      <StreetViewFinder />
+      <ImageSearchPanel />
+    </template>
 
     <PlayerList v-else-if="tab === 'players'" />
 

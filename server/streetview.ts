@@ -1,5 +1,6 @@
 import express from 'express'
 import type { PanoMeta } from '../shared/streetview.js'
+import type { PanoLookup } from '../shared/types.js'
 import { isGoogleMapsUrl, isGoogleShortLink, isPanoId } from '../shared/streetview.js'
 
 /**
@@ -142,6 +143,51 @@ function parsePhotometa(text: string, panoId: string): PanoMeta | null {
   }
 }
 
+/**
+ * Google's keyless `SingleImageSearch` RPC — what the Maps JS client calls to
+ * find the panorama nearest a point (the same family of endpoint as
+ * `photometa` above). Admin-only: it powers the Street View finder.
+ */
+const SINGLE_IMAGE_SEARCH_URL =
+  'https://maps.googleapis.com/$rpc/google.internal.maps.mapsjs.v1.MapsJsInternalService/SingleImageSearch'
+/** How far from the clicked point to look for a panorama, in metres. */
+export const LOOKUP_RADIUS_M = 50
+
+function singleImageSearchBody(lat: number, lng: number): string {
+  return JSON.stringify([
+    ['apiv3', null, null, null, 'US', null, null, null, null, null, [[0]]],
+    [[null, null, lat, lng], LOOKUP_RADIUS_M],
+    [null, ['en', 'US'], null, null, null, null, null, null, [2], null, [[[2, true, 2]]]],
+    [[1, 2, 3, 4, 8, 6]],
+  ])
+}
+
+/**
+ * The nearest panorama out of a `SingleImageSearch` response (positional
+ * arrays, like photometa), or null — no panorama nearby answers with an
+ * error tuple instead of a result node.
+ */
+export function parseSingleImageSearch(text: string): PanoLookup | null {
+  let root: unknown
+  try {
+    root = JSON.parse(text)
+  } catch {
+    return null
+  }
+  const node = (root as any)?.[1]
+  const panoId = node?.[1]?.[1]
+  const camera = node?.[5]?.[0]?.[1]
+  const lat = finiteNumber(camera?.[0]?.[2])
+  const lng = finiteNumber(camera?.[0]?.[3])
+  if (typeof panoId !== 'string' || !isPanoId(panoId) || lat == null || lng == null) return null
+  return { panoId, lat, lng, heading: finiteNumber(camera?.[2]?.[0]) ?? 0 }
+}
+
+const hasAdminPassword = (req: express.Request): boolean => {
+  const password = process.env.ADMIN_PASSWORD ?? ''
+  return password.length > 0 && req.headers['x-admin-password'] === password
+}
+
 /** Pano metadata never changes, so remember what we've already looked up. */
 const metaCache = new Map<string, PanoMeta>()
 const META_CACHE_MAX = 500
@@ -185,8 +231,7 @@ streetViewRouter.get('/pano-meta', async (req, res) => {
 })
 
 streetViewRouter.get('/resolve-link', async (req, res) => {
-  const password = process.env.ADMIN_PASSWORD ?? ''
-  if (!password || req.headers['x-admin-password'] !== password) {
+  if (!hasAdminPassword(req)) {
     res.status(401).json({ error: 'unauthorized' })
     return
   }
@@ -207,5 +252,39 @@ streetViewRouter.get('/resolve-link', async (req, res) => {
   } catch (err) {
     console.error('streetview: could not expand short link', err)
     res.status(502).json({ error: 'resolve_failed' })
+  }
+})
+
+streetViewRouter.get('/pano-lookup', async (req, res) => {
+  if (!hasAdminPassword(req)) {
+    res.status(401).json({ error: 'unauthorized' })
+    return
+  }
+  const lat = Number(req.query.lat)
+  const lng = Number(req.query.lng)
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+    res.status(400).json({ error: 'bad_coords' })
+    return
+  }
+  try {
+    const response = await fetch(SINGLE_IMAGE_SEARCH_URL, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json+protobuf',
+        'x-user-agent': 'grpc-web-javascript/0.1',
+        'user-agent': USER_AGENT,
+      },
+      body: singleImageSearchBody(lat, lng),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    })
+    const found = response.ok ? parseSingleImageSearch(await response.text()) : null
+    if (!found) {
+      res.status(404).json({ error: 'no_pano' })
+      return
+    }
+    res.json(found)
+  } catch (err) {
+    console.error('streetview: pano lookup failed', err)
+    res.status(502).json({ error: 'lookup_failed' })
   }
 })

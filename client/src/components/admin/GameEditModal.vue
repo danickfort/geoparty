@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import type { PreparedGame } from '@shared/types'
+import { DEFAULT_TIMER_SECONDS, sanitizeTimerSeconds, type PreparedGame } from '@shared/types'
 import { isGoogleMapsUrl, parseStreetViewUrl } from '@shared/streetview'
 import AdminModal from '@/components/admin/AdminModal.vue'
 import AnswerPickerMap from '@/components/admin/AnswerPickerMap.vue'
@@ -15,6 +15,7 @@ const draft = ref<PreparedGame>({
   answer: { ...props.game.answer },
   halfPointRadiusKm: props.game.halfPointRadiusKm ?? null,
   rivalCallouts: props.game.rivalCallouts ?? true,
+  timerSeconds: props.game.timerSeconds === undefined ? DEFAULT_TIMER_SECONDS : props.game.timerSeconds,
 })
 
 // The number input yields '' when cleared — normalize to a whole km or null.
@@ -22,6 +23,9 @@ const radiusKm = computed(() => {
   const v = draft.value.halfPointRadiusKm
   return typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.round(v) : null
 })
+
+// Whole seconds, capped at an hour; under 10 s = no timer.
+const timerValue = computed(() => sanitizeTimerSeconds(draft.value.timerSeconds))
 
 const valid = computed(() => !!draft.value.name.trim() && !!draft.value.imageUrl)
 
@@ -32,7 +36,7 @@ const photoUrl = computed(() =>
 )
 
 function save() {
-  emit('save', { ...draft.value, halfPointRadiusKm: radiusKm.value })
+  emit('save', { ...draft.value, halfPointRadiusKm: radiusKm.value, timerSeconds: timerValue.value })
 }
 </script>
 
@@ -62,6 +66,17 @@ function save() {
         min="1"
         step="1"
         placeholder="e.g. 250 — leave empty to disable"
+      />
+    </label>
+    <label class="field">
+      <span>Round timer (seconds)</span>
+      <input
+        v-model.number="draft.timerSeconds"
+        type="number"
+        min="10"
+        max="3600"
+        step="10"
+        placeholder="No time limit"
       />
     </label>
     <label class="check">

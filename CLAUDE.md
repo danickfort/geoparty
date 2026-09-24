@@ -11,12 +11,16 @@ npm install
 ADMIN_PASSWORD=dev npm run dev:server   # backend (tsx watch) on :3000
 npm run dev:client                      # Vite dev server on :5173, proxies to :3000
 npm run build                           # typecheck + build client AND server — the verification gate
+npm test                                # unit tests (node:test via tsx) for shared/ and server/ logic
 npm start                               # run the built server (serves the built client too)
 ```
 
-There is **no test suite and no linter/formatter**. `npm run build` is the only
-verification gate: it runs `vue-tsc --noEmit` (client typecheck), `vite build`, and
-`tsc -p tsconfig.server.json` (server build). Always run it before claiming a change works.
+There is a small `node:test` suite in `tests/` (`npm test`, runs TypeScript through
+`tsx`) covering shared logic and the `Game` class, and **no linter/formatter**.
+`npm run build` is the main verification gate: it runs `vue-tsc --noEmit` (client
+typecheck), `vite build`, and `tsc -p tsconfig.server.json` (server build). Run both
+before claiming a change works. Tests that construct `Game` must `chdir` into a temp
+directory first (see `tests/timer.test.ts`) — it reads `avatars/` and `data/` from the cwd.
 
 During local dev, open `http://localhost:5173/screen`, `/admin`, and one or more
 plain `/` tabs as players. Player identity is per browser tab (sessionStorage), so

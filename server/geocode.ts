@@ -1,4 +1,5 @@
-import type { LatLng } from '../shared/types.js'
+import express from 'express'
+import type { GeocodeHit, LatLng } from '../shared/types.js'
 import type { Game } from './game.js'
 
 /**
@@ -8,6 +9,7 @@ import type { Game } from './game.js'
  * https://operations.osmfoundation.org/policies/nominatim/
  */
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/reverse'
+const NOMINATIM_SEARCH_URL = 'https://nominatim.openstreetmap.org/search'
 const USER_AGENT = 'geoparty/0.1 (party game; reverse geocoding of round guesses)'
 const MIN_SPACING_MS = 1100
 
@@ -69,6 +71,61 @@ async function fetchPlace(point: LatLng): Promise<string | null> {
   if (locality && a.country) return `${locality}, ${a.country}`
   return locality ?? a.country ?? null
 }
+
+/**
+ * Nominatim search rows → hits. Malformed rows are dropped, and so are repeated
+ * labels (Nominatim lists a square as both its node and its outline).
+ */
+export function toGeocodeHits(rows: unknown): GeocodeHit[] {
+  if (!Array.isArray(rows)) return []
+  const seen = new Set<string>()
+  return rows
+    .map((r) => ({ label: String(r?.display_name ?? ''), lat: Number(r?.lat), lng: Number(r?.lon) }))
+    .filter((h) => {
+      if (!h.label || !Number.isFinite(h.lat) || !Number.isFinite(h.lng) || seen.has(h.label)) return false
+      seen.add(h.label)
+      return true
+    })
+}
+
+/**
+ * Up to 5 places matching free text, for the admin's Street View finder.
+ * Shares the reverse-geocoding queue so Nominatim never sees more than one
+ * request per second from us.
+ */
+export function searchPlaces(query: string): Promise<GeocodeHit[]> {
+  const run = queue.then(async () => {
+    const params = new URLSearchParams({ format: 'jsonv2', limit: '5', q: query, 'accept-language': 'en' })
+    const res = await fetch(`${NOMINATIM_SEARCH_URL}?${params}`, {
+      headers: { 'user-agent': USER_AGENT },
+      signal: AbortSignal.timeout(8000),
+    })
+    return res.ok ? toGeocodeHits(await res.json()) : []
+  })
+  queue = run.catch(() => null).then(() => sleep(MIN_SPACING_MS))
+  return run
+}
+
+export const geocodeRouter = express.Router()
+
+geocodeRouter.get('/geocode', async (req, res) => {
+  const password = process.env.ADMIN_PASSWORD ?? ''
+  if (!password || req.headers['x-admin-password'] !== password) {
+    res.status(401).json({ error: 'unauthorized' })
+    return
+  }
+  const q = String(req.query.q ?? '').trim()
+  if (q.length < 2) {
+    res.status(400).json({ error: 'query_too_short' })
+    return
+  }
+  try {
+    res.json({ results: await searchPlaces(q) })
+  } catch (err) {
+    console.error('geocode: place search failed', err)
+    res.status(502).json({ error: 'geocode_failed' })
+  }
+})
 
 /**
  * Fills in `place` for every entry of the current reveal (and the answer),

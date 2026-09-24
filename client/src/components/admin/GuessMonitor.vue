@@ -1,13 +1,20 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import L from 'leaflet'
+import { formatKm } from '@shared/format'
 import { haversineKm } from '@shared/geo'
 import { avatarIcon, flagIcon, useLeafletMap } from '@/composables/useLeafletMap'
+import { useCountdown } from '@/composables/useCountdown'
 import { useAdminStore } from '@/stores/admin'
 import { useGameStore } from '@/stores/game'
 
 const admin = useAdminStore()
 const game = useGameStore()
+
+const { label: clock } = useCountdown(
+  computed(() => game.timer?.endsAt ?? null),
+  computed(() => game.serverOffset),
+)
 
 const mapEl = ref<HTMLElement | null>(null)
 const map = useLeafletMap(mapEl, { zoomControl: true })
@@ -80,13 +87,17 @@ const ranked = computed(() => {
 
 <template>
   <section class="card monitor">
-    <h3>🗺️ Guesses</h3>
+    <header class="monitor-header">
+      <h3>🗺️ Guesses</h3>
+      <span v-if="game.timeUp" class="clock over">⏰ Time's up</span>
+      <span v-else-if="game.timer" class="clock">⏱ {{ clock }}</span>
+    </header>
     <div ref="mapEl" class="map"></div>
     <ol v-if="ranked.length" class="ranking">
       <li v-for="r in ranked" :key="r.player!.id">
         <img :src="`/avatars/${r.player!.avatar}`" :alt="r.player!.name" />
         <span class="name">{{ r.player!.name }}</span>
-        <span class="dist">{{ Math.round(r.distanceKm).toLocaleString() }} km</span>
+        <span class="dist">{{ formatKm(r.distanceKm) }}</span>
       </li>
     </ol>
     <p v-else class="muted">No locked-in guesses yet.</p>
@@ -98,6 +109,27 @@ const ranked = computed(() => {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.monitor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.clock {
+  font-weight: 900;
+  font-size: 1.2rem;
+  font-variant-numeric: tabular-nums;
+  padding: 2px 12px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+
+.clock.over {
+  color: var(--accent);
 }
 
 .map {

@@ -279,3 +279,14 @@ export function streetViewEmbedUrl(spec: StreetViewSpec): string {
   parts.push('output=svembed')
   return `https://maps.google.com/maps?${parts.join('&')}`
 }
+
+/**
+ * A canonical Google Maps Street View link for a spec — the shape the address
+ * bar shows, so it opens in Google Maps *and* parses back with
+ * `parseStreetViewUrl`. Used by the admin's Street View finder.
+ */
+export function buildStreetViewUrl(spec: StreetViewSpec): string {
+  const view = `${coord(spec.lat)},${coord(spec.lng)},3a,75y,${deg(spec.heading)}h,${deg(90 - spec.pitch)}t`
+  const data = spec.panoId ? `/data=!3m4!1e1!3m2!1s${spec.panoId}!2e0` : ''
+  return `https://www.google.com/maps/@${view}${data}`
+}

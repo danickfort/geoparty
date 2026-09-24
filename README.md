@@ -22,11 +22,32 @@ up across games.
 2. **Play** — the host presses *Start game*. The screen swaps the QR for the
    photo (or the Street View panorama); player phones get a world map. As
    players lock in, their avatars float along the edges of the big screen.
+   A round timer (3 minutes by default, set per round, empty = no limit) counts
+   down at the top of the screen; when it runs out, pins that were dropped but
+   not locked are locked in automatically.
 3. **Reveal** — the host steps through the guesses one by one, farthest first,
    each dropping onto the map with the player's face on the pin. Then the 🏁
    answer, then the winner celebration (+1 point).
 4. **Again** — scoreboard on demand, then *New game* loops back to the lobby.
    Players and scores are kept (scores even survive a server restart).
+
+## Badges
+
+Titles derived from the recent game history (`data/history.json`), recomputed after
+every game and shown next to names on the scoreboard, on phones and in Slack. They
+change hands — that's the point.
+
+| Badge | Rule |
+|---|---|
+| 👑 Reigning champ | Won the most recent game |
+| 🔥 Hot streak | Won 2+ games in a row, and counting |
+| 🎯 Sniper | Latest guess within 25 km of the answer (last 10 games): any new guess inside 25 km takes it |
+| 🥈 Always the bridesmaid | Most 2nd places (at least 2) in the last 10 games without winning any of them |
+| 📈 Climber | Most points gained over the last 5 games |
+
+A tie for Bridesmaid or Climber leaves that badge unawarded. The end-of-round tally on the big screen lists every
+title that changed hands, and each phone says which titles its player won or lost.
+The admin **Players** tab and the big-screen scoreboard show this legend too.
 
 ## Development
 
@@ -106,6 +127,14 @@ Paste any of these and the panorama is recognised automatically:
 A plain Google Maps link that *isn't* in Street View is rejected with a hint —
 open it, drop into Street View, then copy the URL again.
 
+Don't have a link yet? The admin **Find** tab has a **Street View finder**: search a
+place or click the map, and the pin snaps to the nearest panorama and opens it in
+Google's embed so you can look around. *Use for round* hands the link to Round
+setup (pano id included, so the big screen uses the clean tile viewer below), or
+save it to your library. The pin is what counts — walking around inside the preview
+doesn't move the round; to use a spot further down the street, *Open in Google Maps*,
+walk there, and paste that URL into Round setup.
+
 The heading in the link is where the panorama starts, and the view is draggable
 with the mouse both in the admin preview and on the big screen.
 
@@ -136,6 +165,9 @@ changes).
 
 - Game state lives in server memory; only the scoreboard is persisted
   (`data/scores.json`, keyed by avatar).
+- Map tiles are keyless: OpenFreeMap vector tiles (OSM data) for the map, Esri World
+  Imagery + reference labels for satellite (non-commercial terms), OpenTopoMap for terrain.
+  Browsers without WebGL2 get OpenStreetMap's raster tiles instead.
 - Players who lose their session (phone browser killed) can reclaim their
   avatar from the join screen and keep their score.
 - Joining mid-round makes you a spectator until the next game.

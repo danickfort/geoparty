@@ -1,6 +1,7 @@
 import type { Server, Socket } from 'socket.io'
 import type { ClientToServerEvents, ServerToClientEvents } from '../shared/events.js'
 import { renderSlackMessage } from '../shared/slack.js'
+import { DEFAULT_TIMER_SECONDS } from '../shared/types.js'
 import { resolveRevealPlaces } from './geocode.js'
 import { postToSlack, publicImageUrl } from './slack.js'
 import type { Game } from './game.js'
@@ -20,6 +21,8 @@ export function setupSockets(io: IO, game: Game): void {
     io.emit('state', game.toPublicState())
     io.to('admins').emit('admin:state', game.toAdminState())
   }
+  // The round timer fires on its own schedule — re-broadcast when it does.
+  game.onTimeUp = broadcast
 
   const checkAdmin = (password: string): boolean =>
     ADMIN_PASSWORD.length > 0 && password === ADMIN_PASSWORD
@@ -135,6 +138,7 @@ export function setupSockets(io: IO, game: Game): void {
         String(payload.description ?? ''),
         typeof payload.halfPointRadiusKm === 'number' ? payload.halfPointRadiusKm : null,
         payload.rivalCallouts !== false,
+        payload.timerSeconds === undefined ? DEFAULT_TIMER_SECONDS : payload.timerSeconds,
       )
       if (ok) broadcast()
     })
