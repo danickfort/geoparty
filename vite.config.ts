@@ -27,5 +27,7 @@ export default defineConfig({
       '/avatars': backend,
     },
   },
+  // MapLibre's worker is an ES module (it imports a shared chunk).
+  worker: { format: 'es' },
   build: { outDir: 'dist', emptyOutDir: true },
 })
