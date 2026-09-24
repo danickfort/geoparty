@@ -4,8 +4,10 @@ import type {
   AdminState,
   GameDraft,
   GameRecord,
+  GeocodeHit,
   ImageSearchResult,
   LatLng,
+  PanoLookup,
   PreparedGame,
   TeamSetup,
 } from '@shared/types'
@@ -190,6 +192,26 @@ export const useAdminStore = defineStore('admin', () => {
     return results
   }
 
+  /** Nearest Street View panorama to a point, or null when there's none close by. */
+  async function lookupPano(p: LatLng): Promise<PanoLookup | null> {
+    const res = await fetch(`/api/pano-lookup?lat=${p.lat}&lng=${p.lng}`, {
+      headers: { 'x-admin-password': password.value },
+    })
+    if (res.status === 404) return null
+    if (!res.ok) throw new Error(`lookup failed (${res.status})`)
+    return (await res.json()) as PanoLookup
+  }
+
+  /** Places matching free text (Nominatim, proxied by the server). */
+  async function searchPlaces(query: string): Promise<GeocodeHit[]> {
+    const res = await fetch(`/api/geocode?q=${encodeURIComponent(query)}`, {
+      headers: { 'x-admin-password': password.value },
+    })
+    if (!res.ok) throw new Error(`place search failed (${res.status})`)
+    const { results } = (await res.json()) as { results: GeocodeHit[] }
+    return results
+  }
+
   /**
    * Expand a Google maps short link (`maps.app.goo.gl/…`) into the full URL
    * that carries the coordinates and heading. The shortener sends no CORS
@@ -256,6 +278,8 @@ export const useAdminStore = defineStore('admin', () => {
     postToSlack,
     postGameToSlack,
     searchImages,
+    lookupPano,
+    searchPlaces,
     resolveLink,
     uploadImage,
   }

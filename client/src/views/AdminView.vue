@@ -11,6 +11,7 @@ import PlayerList from '@/components/admin/PlayerList.vue'
 import PreparedGames from '@/components/admin/PreparedGames.vue'
 import CollectionsPanel from '@/components/admin/CollectionsPanel.vue'
 import ImageSearchPanel from '@/components/admin/ImageSearchPanel.vue'
+import StreetViewFinder from '@/components/admin/StreetViewFinder.vue'
 import GameHistory from '@/components/admin/GameHistory.vue'
 import SlackPostModal from '@/components/admin/SlackPostModal.vue'
 
@@ -195,7 +196,10 @@ const mainAction = computed(() => {
       <PreparedGames />
     </template>
 
-    <ImageSearchPanel v-else-if="tab === 'search'" />
+    <template v-else-if="tab === 'search'">
+      <StreetViewFinder />
+      <ImageSearchPanel />
+    </template>
 
     <PlayerList v-else-if="tab === 'players'" />
 
