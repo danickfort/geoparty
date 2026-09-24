@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { formatPoints } from '@shared/format'
+import { formatKm, formatPoints } from '@shared/format'
 import { useGameStore } from '@/stores/game'
 import { usePlayerStore } from '@/stores/player'
 import BadgeChips from '@/components/BadgeChips.vue'
@@ -39,7 +39,6 @@ const myRank = computed(() => {
   return reveal.total - reveal.order.indexOf(myEntry.value)
 })
 
-const km = (v: number) => `${Math.round(v).toLocaleString()} km`
 
 // Titles I gained or lost in this game.
 const myBadgeChanges = computed(() =>
@@ -138,13 +137,13 @@ onBeforeUnmount(() => timers.forEach(clearTimeout))
       <template v-if="isWinner">
         <div class="emoji">🏆</div>
         <h2>{{ winnerTeam ? `Team ${winnerTeam.name} wins!` : 'You won!' }}</h2>
-        <p v-if="myEntry" class="sub">{{ km(myEntry.distanceKm) }} from the spot</p>
+        <p v-if="myEntry" class="sub">{{ formatKm(myEntry.distanceKm) }} from the spot</p>
       </template>
       <template v-else-if="myEntry">
         <div class="emoji">📍</div>
         <h2>#{{ myRank }} this round</h2>
         <p class="sub">
-          {{ km(myEntry.distanceKm) }} away<template v-if="winnerLabel"> · {{ winnerLabel }} takes it</template>
+          {{ formatKm(myEntry.distanceKm) }} away<template v-if="winnerLabel"> · {{ winnerLabel }} takes it</template>
         </p>
       </template>
       <template v-else>

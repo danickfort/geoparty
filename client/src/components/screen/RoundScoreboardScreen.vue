@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { formatKm } from '@shared/format'
 import { useGameStore } from '@/stores/game'
 
 const game = useGameStore()
@@ -81,7 +82,7 @@ const fmt = (n: number) => (n > 0 ? `+${n}` : `${n}`.replace('-', '−'))
           </span>
           <em v-if="r.place" class="place">near {{ r.place }}</em>
         </span>
-        <span class="distance">{{ Math.round(r.distanceKm).toLocaleString() }} km</span>
+        <span class="distance">{{ formatKm(r.distanceKm) }}</span>
       </div>
     </div>
     <p v-else class="empty">Nobody guessed this round 😅</p>

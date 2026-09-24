@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { formatKm } from '@shared/format'
 import { renderSlackMessage } from '@shared/slack'
 import { useAdminStore } from '@/stores/admin'
 import AdminModal from '@/components/admin/AdminModal.vue'
@@ -13,7 +14,6 @@ const preview = computed(() => renderSlackMessage(games.value, admin.state?.scor
 const posting = ref(false)
 const error = ref<string | null>(null)
 
-const km = (v: number) => `${Math.round(v).toLocaleString()} km`
 
 const ERRORS: Record<string, string> = {
   slack_not_configured: "Slack isn't configured on the server (set SLACK_WEBHOOK_URL).",
@@ -51,12 +51,12 @@ async function post() {
           <div class="game-head">{{ game.answerPlace || game.description || 'Mystery location' }}</div>
           <div v-if="game.winnerName" class="winner">
             🏆 {{ game.winnerName }} —
-            {{ game.winnerDistanceKm != null ? km(game.winnerDistanceKm) : '—' }}
+            {{ game.winnerDistanceKm != null ? formatKm(game.winnerDistanceKm) : '—' }}
           </div>
           <ul class="results">
             <li v-for="r in game.results" :key="r.avatar" :class="{ won: r.avatar === game.winnerAvatar }">
               <span class="name">{{ r.name }}</span>
-              <span class="dist">{{ km(r.distanceKm) }}</span>
+              <span class="dist">{{ formatKm(r.distanceKm) }}</span>
               <span v-if="r.place" class="place">{{ r.place }}</span>
             </li>
           </ul>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import L from 'leaflet'
+import { formatKm } from '@shared/format'
 import type { RevealEntry } from '@shared/types'
 import { avatarIcon, flagIcon, useLeafletMap } from '@/composables/useLeafletMap'
 import { useGameStore } from '@/stores/game'
@@ -143,7 +144,7 @@ const revealedCount = computed(() => game.reveal?.revealedCount ?? 0)
         <div>
           <strong>{{ toast.name }}</strong>
           <span v-if="toast.sub" class="place">{{ toast.sub }}</span>
-          <span>{{ Math.round(toast.distanceKm).toLocaleString() }} km away</span>
+          <span>{{ formatKm(toast.distanceKm) }} away</span>
           <span v-if="toastPlace" class="place">📍 near {{ toastPlace }}</span>
         </div>
       </div>

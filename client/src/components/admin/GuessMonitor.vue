@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import L from 'leaflet'
+import { formatKm } from '@shared/format'
 import { haversineKm } from '@shared/geo'
 import { avatarIcon, flagIcon, useLeafletMap } from '@/composables/useLeafletMap'
 import { useCountdown } from '@/composables/useCountdown'
@@ -96,7 +97,7 @@ const ranked = computed(() => {
       <li v-for="r in ranked" :key="r.player!.id">
         <img :src="`/avatars/${r.player!.avatar}`" :alt="r.player!.name" />
         <span class="name">{{ r.player!.name }}</span>
-        <span class="dist">{{ Math.round(r.distanceKm).toLocaleString() }} km</span>
+        <span class="dist">{{ formatKm(r.distanceKm) }}</span>
       </li>
     </ol>
     <p v-else class="muted">No locked-in guesses yet.</p>
