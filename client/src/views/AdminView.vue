@@ -87,6 +87,14 @@ const mainAction = computed(() => {
       }
     case 'guessing': {
       const total = game.teamMode ? game.teams.length : activeCount.value
+      if (game.timeUp) {
+        return {
+          label: `⏰ Time's up — start reveal (${lockedCount.value}/${total} locked)`,
+          disabled: false,
+          hint: 'Unlocked pins were locked in automatically',
+          run: admin.startReveal,
+        }
+      }
       return {
         label: `🔒 Start reveal (${lockedCount.value}/${total} locked)`,
         disabled: false,

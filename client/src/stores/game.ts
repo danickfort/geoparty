@@ -6,8 +6,13 @@ import { socket } from '@/services/socket'
 export const useGameStore = defineStore('game', () => {
   const state = ref<PublicState | null>(null)
 
+  // Server clock minus ours, sampled on every broadcast — countdowns use it so a
+  // phone whose clock is off still shows the same number as the big screen.
+  const serverOffset = ref(0)
+
   socket.on('state', (s) => {
     state.value = s
+    serverOffset.value = s.serverNow - Date.now()
   })
 
   const phase = computed(() => state.value?.phase ?? 'lobby')
@@ -43,6 +48,10 @@ export const useGameStore = defineStore('game', () => {
   // History-derived titles by avatar (computed server-side, shared with Slack).
   const badges = computed(() => state.value?.badges ?? {})
   const badgesFor = (avatar: string) => badges.value[avatar] ?? []
+
+  // Round countdown (null = no timer, or not guessing) and whether it ran out.
+  const timer = computed(() => state.value?.timer ?? null)
+  const timeUp = computed(() => state.value?.timeUp ?? false)
 
   const playerById = (id: string) => players.value.find((p) => p.id === id)
   const playerByAvatar = (avatar: string) => players.value.find((p) => p.avatar === avatar)
@@ -83,6 +92,9 @@ export const useGameStore = defineStore('game', () => {
     badgesFor,
     duels,
     callouts,
+    timer,
+    timeUp,
+    serverOffset,
     playerById,
     playerByAvatar,
   }

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import type { LatLng } from '@shared/types'
+import { DEFAULT_TIMER_SECONDS, sanitizeTimerSeconds, type LatLng } from '@shared/types'
 import { isGoogleMapsUrl, isGoogleShortLink, parseStreetViewUrl } from '@shared/streetview'
 import { useAdminStore } from '@/stores/admin'
 import AnswerPickerMap from '@/components/admin/AnswerPickerMap.vue'
@@ -14,6 +14,7 @@ const answer = ref<LatLng | null>(null)
 const description = ref('')
 const halfPointRadiusKm = ref<number | null>(null)
 const rivalCallouts = ref(true)
+const timerSeconds = ref<number | null>(DEFAULT_TIMER_SECONDS)
 const uploading = ref(false)
 const uploadError = ref<string | null>(null)
 
@@ -22,6 +23,9 @@ const radiusKm = computed(() => {
   const v = halfPointRadiusKm.value
   return typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.round(v) : null
 })
+
+// Same for the timer: whole seconds, capped at an hour; under 10 s = no timer.
+const timerValue = computed(() => sanitizeTimerSeconds(timerSeconds.value))
 
 // A prepared game or search result was picked — overwrite the form with it.
 watch(
@@ -33,6 +37,7 @@ watch(
     description.value = draft.description
     halfPointRadiusKm.value = draft.halfPointRadiusKm
     rivalCallouts.value = draft.rivalCallouts
+    timerSeconds.value = draft.timerSeconds
     admin.roundDraft = null
   },
   { immediate: true },
@@ -64,6 +69,15 @@ watch(
   () => admin.state?.roundHalfPointRadiusKm,
   (r) => {
     if (r != null && halfPointRadiusKm.value == null) halfPointRadiusKm.value = r
+  },
+  { immediate: true },
+)
+// The timer has a default rather than an empty state: mirror the server's value
+// whenever a round is set there (refresh mid-setup, a round saved or loaded).
+watch(
+  () => admin.state?.roundTimerSeconds,
+  (t) => {
+    if (t !== undefined && admin.state?.roundImageUrl) timerSeconds.value = t
   },
   { immediate: true },
 )
@@ -152,12 +166,20 @@ const saved = computed(
     admin.state.answer.lng === answer.value?.lng &&
     admin.state.roundDescription === description.value.trim() &&
     admin.state.roundHalfPointRadiusKm === radiusKm.value &&
-    admin.state.roundRivalCallouts === rivalCallouts.value,
+    admin.state.roundRivalCallouts === rivalCallouts.value &&
+    admin.state.roundTimerSeconds === timerValue.value,
 )
 
 function save() {
   if (imageUrl.value && answer.value) {
-    admin.setRound(imageUrl.value, answer.value, description.value, radiusKm.value, rivalCallouts.value)
+    admin.setRound(
+      imageUrl.value,
+      answer.value,
+      description.value,
+      radiusKm.value,
+      rivalCallouts.value,
+      timerValue.value,
+    )
   }
 }
 
@@ -176,6 +198,7 @@ async function saveForLater() {
     description: description.value,
     halfPointRadiusKm: radiusKm.value,
     rivalCallouts: rivalCallouts.value,
+    timerSeconds: timerValue.value,
   })
   if (ok) {
     savedForLater.value = true
@@ -234,6 +257,18 @@ async function saveForLater() {
         min="1"
         step="1"
         placeholder="e.g. 250 — leave empty to disable"
+      />
+    </label>
+
+    <label class="field">
+      <span>Round timer <em class="muted">(seconds — leave empty for no time limit)</em></span>
+      <input
+        v-model.number="timerSeconds"
+        type="number"
+        min="10"
+        max="3600"
+        step="10"
+        placeholder="No time limit"
       />
     </label>
 

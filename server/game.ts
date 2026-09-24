@@ -4,7 +4,7 @@ import path from 'node:path'
 import { computeBadges, type Badge } from '../shared/badges.js'
 import { haversineKm } from '../shared/geo.js'
 import { MAX_TEAMS, MIN_TEAMS, TEAM_PALETTE } from '../shared/teams.js'
-import { DUEL_WINDOW_SECONDS } from '../shared/types.js'
+import { DEFAULT_TIMER_SECONDS, DUEL_WINDOW_SECONDS, sanitizeTimerSeconds } from '../shared/types.js'
 import type {
   AdminState,
   Collection,
@@ -73,6 +73,15 @@ export class Game {
   rivalCallouts = true
   /** When the guessing phase began; call-outs close DUEL_WINDOW_SECONDS later. */
   guessingStartedAt: number | null = null
+  /** Length of the guessing phase for this round; null = no timer. */
+  timerSeconds: number | null = DEFAULT_TIMER_SECONDS
+  /** Server clock when the timer fires (ms since epoch); null when not running. */
+  timerEndsAt: number | null = null
+  /** True once the timer fired this round. */
+  timeUp = false
+  /** Called after the timer fires so the socket layer can re-broadcast state. */
+  onTimeUp: (() => void) | null = null
+  private timerHandle: ReturnType<typeof setTimeout> | null = null
   /** Settled call-outs of the game that just ended. */
   duels: Duel[] = []
   /** Teams for the current game; empty = solo play. Kept across games until cleared. */
@@ -190,6 +199,7 @@ export class Game {
 
   lockIn(playerId: string, guess: LatLng): { ok: boolean; error?: string } {
     if (this.phase !== 'guessing') return { ok: false, error: 'bad_phase' }
+    if (this.timeUp) return { ok: false, error: 'time_up' }
     const player = this.players.get(playerId)
     if (!player || player.spectator) return { ok: false, error: 'not_playing' }
     if (player.lockedIn) return { ok: false, error: 'already_locked' }
@@ -248,14 +258,19 @@ export class Game {
     return true
   }
 
-  /** A member's suggestion or the captain's draft pin, shown live to the rest of the team. */
+  /**
+   * The pin currently on a phone's map. Team games show it live to teammates
+   * (a member's suggestion, the captain's draft); every mode uses it to lock
+   * in stragglers when the round timer runs out.
+   */
   suggest(playerId: string, pin: LatLng): { ok: boolean; teamId?: string } {
-    if (this.phase !== 'guessing' || !this.teamMode) return { ok: false }
+    if (this.phase !== 'guessing' || this.timeUp) return { ok: false }
     const player = this.players.get(playerId)
-    if (!player || player.spectator || !player.teamId || player.lockedIn) return { ok: false }
+    if (!player || player.spectator || player.lockedIn) return { ok: false }
+    if (this.teamMode && !player.teamId) return { ok: false }
     if (!isValidLatLng(pin)) return { ok: false }
     player.livePin = pin
-    return { ok: true, teamId: player.teamId }
+    return this.teamMode && player.teamId ? { ok: true, teamId: player.teamId } : { ok: true }
   }
 
   teamLivePins(teamId: string): Record<string, LatLng> {
@@ -347,6 +362,7 @@ export class Game {
     description = '',
     halfPointRadiusKm: number | null = null,
     rivalCallouts = true,
+    timerSeconds: number | null = DEFAULT_TIMER_SECONDS,
   ): boolean {
     if (this.phase !== 'lobby' || !imageUrl || !isValidLatLng(answer)) return false
     this.imageUrl = imageUrl
@@ -354,6 +370,7 @@ export class Game {
     this.description = description.trim()
     this.halfPointRadiusKm = sanitizeRadiusKm(halfPointRadiusKm)
     this.rivalCallouts = rivalCallouts !== false
+    this.timerSeconds = sanitizeTimerSeconds(timerSeconds)
     return true
   }
 
@@ -372,11 +389,46 @@ export class Game {
     }
     this.phase = 'guessing'
     this.guessingStartedAt = Date.now()
+    this.timeUp = false
+    this.timerEndsAt = null
+    this.clearTimer()
+    if (this.timerSeconds) {
+      this.timerEndsAt = this.guessingStartedAt + this.timerSeconds * 1000
+      this.timerHandle = setTimeout(() => {
+        if (this.expireTimer()) this.onTimeUp?.()
+      }, this.timerSeconds * 1000)
+    }
     return true
+  }
+
+  /**
+   * The countdown reached zero: close lock-ins and lock in every player who has
+   * a pin on the map but never pressed the button (in team games, captains
+   * only). Players without a pin sit the round out. The host still starts the
+   * reveal. Returns false when there was nothing to do.
+   */
+  expireTimer(): boolean {
+    this.clearTimer()
+    if (this.phase !== 'guessing' || this.timeUp) return false
+    this.timeUp = true
+    for (const p of this.players.values()) {
+      if (p.lockedIn || p.spectator || !p.livePin) continue
+      if (this.teamMode && this.teamOf(p)?.captainId !== p.id) continue
+      p.guess = p.livePin
+      p.lockedIn = true
+    }
+    return true
+  }
+
+  private clearTimer(): void {
+    if (this.timerHandle) clearTimeout(this.timerHandle)
+    this.timerHandle = null
   }
 
   startReveal(): boolean {
     if (this.phase !== 'guessing' || !this.answer) return false
+    this.clearTimer()
+    this.timerEndsAt = null
     const answer = this.answer
     // Solo: every locked guess. Teams: only captains' pins count.
     const sources = this.teamMode
@@ -572,6 +624,10 @@ export class Game {
     this.halfPointRadiusKm = null
     this.rivalCallouts = true
     this.guessingStartedAt = null
+    this.clearTimer()
+    this.timerSeconds = DEFAULT_TIMER_SECONDS
+    this.timerEndsAt = null
+    this.timeUp = false
     this.duels = []
     this.reveal = null
     this.previousScoreboard = null
@@ -631,6 +687,7 @@ export class Game {
       description: String(draft.description ?? '').trim(),
       halfPointRadiusKm: sanitizeRadiusKm(draft.halfPointRadiusKm),
       rivalCallouts: draft.rivalCallouts !== false,
+      timerSeconds: timerOf(draft),
       createdAt: Date.now(),
     }
   }
@@ -654,6 +711,7 @@ export class Game {
     existing.description = String(update.description ?? '').trim()
     existing.halfPointRadiusKm = sanitizeRadiusKm(update.halfPointRadiusKm)
     existing.rivalCallouts = update.rivalCallouts !== false
+    existing.timerSeconds = timerOf(update)
     savePreparedGames(this.preparedGames)
     return true
   }
@@ -676,6 +734,7 @@ export class Game {
       prepared.description,
       prepared.halfPointRadiusKm ?? null,
       prepared.rivalCallouts ?? true,
+      timerOf(prepared),
     )
   }
 
@@ -731,6 +790,7 @@ export class Game {
     existing.description = String(update.description ?? '').trim()
     existing.halfPointRadiusKm = sanitizeRadiusKm(update.halfPointRadiusKm)
     existing.rivalCallouts = update.rivalCallouts !== false
+    existing.timerSeconds = timerOf(update)
     saveCollection(collection)
     return true
   }
@@ -757,6 +817,7 @@ export class Game {
       game.description,
       game.halfPointRadiusKm ?? null,
       game.rivalCallouts ?? true,
+      timerOf(game),
     )
   }
 
@@ -805,6 +866,12 @@ export class Game {
       publicUrl: this.publicUrl,
       badges: this.badges,
       duels: this.duels,
+      timer:
+        this.phase === 'guessing' && this.timerEndsAt !== null && this.timerSeconds
+          ? { endsAt: this.timerEndsAt, seconds: this.timerSeconds }
+          : null,
+      timeUp: this.timeUp,
+      serverNow: Date.now(),
       reveal: this.reveal && {
         ...this.reveal,
         // Only what has been revealed so far leaves the server.
@@ -829,6 +896,7 @@ export class Game {
       roundDescription: this.description,
       roundHalfPointRadiusKm: this.halfPointRadiusKm,
       roundRivalCallouts: this.rivalCallouts,
+      roundTimerSeconds: this.timerSeconds,
       guesses,
       preparedGames: this.preparedGames,
       collections: this.collections,
@@ -837,6 +905,11 @@ export class Game {
       slackConfigured: Boolean(process.env.SLACK_WEBHOOK_URL),
     }
   }
+}
+
+/** A saved game's timer: its own value (null = none), or the default for older saves. */
+function timerOf(game: { timerSeconds?: number | null }): number | null {
+  return game.timerSeconds === undefined ? DEFAULT_TIMER_SECONDS : sanitizeTimerSeconds(game.timerSeconds)
 }
 
 /** Positive whole km or null — anything else (0, NaN, negatives) disables the radius. */

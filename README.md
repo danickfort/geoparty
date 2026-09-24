@@ -22,6 +22,9 @@ up across games.
 2. **Play** — the host presses *Start game*. The screen swaps the QR for the
    photo (or the Street View panorama); player phones get a world map. As
    players lock in, their avatars float along the edges of the big screen.
+   A round timer (3 minutes by default, set per round, empty = no limit) counts
+   down at the top of the screen; when it runs out, pins that were dropped but
+   not locked are locked in automatically.
 3. **Reveal** — the host steps through the guesses one by one, farthest first,
    each dropping onto the map with the player's face on the pin. Then the 🏁
    answer, then the winner celebration (+1 point).
