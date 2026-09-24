@@ -136,6 +136,9 @@ changes).
 
 - Game state lives in server memory; only the scoreboard is persisted
   (`data/scores.json`, keyed by avatar).
+- Map tiles are keyless: OpenFreeMap vector tiles (OSM data) for the map, Esri World
+  Imagery + reference labels for satellite (non-commercial terms), OpenTopoMap for terrain.
+  Browsers without WebGL2 get OpenStreetMap's raster tiles instead.
 - Players who lose their session (phone browser killed) can reclaim their
   avatar from the join screen and keep their score.
 - Joining mid-round makes you a spectator until the next game.
