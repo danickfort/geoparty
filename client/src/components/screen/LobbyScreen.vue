@@ -15,7 +15,7 @@ watchEffect(() => {
 
 <template>
   <div class="lobby">
-    <h1 class="title">🌍 GeoParty</h1>
+    <h1 class="title">GeoParty</h1>
 
     <div class="qr-card pop-in">
       <canvas ref="qrCanvas"></canvas>
@@ -48,41 +48,49 @@ watchEffect(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 22px;
+  gap: clamp(14px, 2.4vh, 28px);
   padding: 4vh 4vw;
 }
 
 .title {
-  font-size: clamp(2.2rem, 6vw, 4.5rem);
+  font-size: clamp(2.8rem, 8vw, 6.5rem);
+  line-height: 1;
 }
 
+/* White card with an ink hairline, like a label pasted on the map. */
 .qr-card {
   background: #fff;
-  border-radius: 24px;
-  padding: 24px 24px 14px;
+  border: 1px solid var(--border-strong);
+  padding: 24px 24px 12px;
   box-shadow: var(--shadow);
   text-align: center;
 }
 
+.qr-card canvas {
+  display: block;
+}
+
 .join-url {
-  margin: 10px 0 4px;
-  color: #111;
-  font-weight: 800;
+  margin: 10px 0 0;
+  color: var(--text);
+  font-weight: 600;
   font-size: clamp(1rem, 2.2vw, 1.5rem);
 }
 
 .scan-hint {
   margin: 0;
-  font-size: clamp(1.2rem, 2.6vw, 1.9rem);
-  font-weight: 700;
-  color: var(--accent);
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 3.4vw, 2.6rem);
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--water);
 }
 
 .joined {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 18px;
+  gap: clamp(14px, 2.2vw, 36px);
   max-width: 80vw;
   min-height: 96px;
 }
@@ -92,16 +100,19 @@ watchEffect(() => {
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  font-weight: 700;
-  font-size: clamp(0.9rem, 1.6vw, 1.2rem);
+  font-weight: 600;
+  font-size: clamp(0.9rem, 1.6vw, 1.3rem);
 }
 
+/* Paper + ink double ring: the padding shows the paper, the border is the ink
+   (a team game recolours the border inline). */
 .joined-player img {
-  width: clamp(56px, 7vw, 88px);
-  height: clamp(56px, 7vw, 88px);
+  width: clamp(56px, 7vw, 96px);
+  height: clamp(56px, 7vw, 96px);
+  padding: clamp(3px, 0.35vw, 5px);
   border-radius: 50%;
-  border: 3px solid var(--accent);
-  background: #fff;
+  border: clamp(3px, 0.35vw, 5px) solid var(--text);
+  background: var(--surface);
 }
 
 .waiting {

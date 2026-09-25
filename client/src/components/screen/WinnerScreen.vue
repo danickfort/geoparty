@@ -21,9 +21,19 @@ const distanceKm = computed(() => game.reveal?.winnerDistanceKm)
 const winnerTeam = computed(() => game.teamById(game.reveal?.winnerTeamId))
 const teamMembers = computed(() => (winnerTeam.value ? game.membersOf(winnerTeam.value.id) : []))
 
+// Confetti in Atlas colours, read from theme.css so they stay in sync. White
+// would vanish on the paper, so a team game pairs its colour with ink.
+function themeColors(...names: string[]): string[] {
+  const root = getComputedStyle(document.documentElement)
+  return names.map((n) => root.getPropertyValue(n).trim()).filter(Boolean)
+}
+
 onMounted(() => {
   if (!winner.value) return
-  const colors = winnerTeam.value ? [winnerTeam.value.color, '#ffffff'] : undefined
+  const palette = winnerTeam.value
+    ? [winnerTeam.value.color, ...themeColors('--text')]
+    : themeColors('--text', '--hot', '--ok', '--water', '--land')
+  const colors = palette.length ? palette : undefined
   const blast = (x: number) =>
     confetti({ particleCount: 120, spread: 75, origin: { x, y: 0.8 }, colors })
   blast(0.2)
@@ -48,13 +58,13 @@ onMounted(() => {
             class="winner-avatar"
             :src="`/avatars/${m.avatar}`"
             :alt="m.name"
-            :style="{ borderColor: winnerTeam.color, boxShadow: `0 0 40px ${winnerTeam.color}88` }"
+            :style="{ borderColor: winnerTeam.color }"
           />
         </div>
         <div class="banner-text">
           <h1 class="winner-name" :style="{ color: winnerTeam.color }">Team {{ winnerTeam.name }} wins! 🏆</h1>
           <p v-if="distanceKm != null" class="winner-distance">
-            only {{ formatKm(distanceKm) }} away
+            only <span class="num">{{ formatKm(distanceKm) }}</span> away
           </p>
         </div>
       </template>
@@ -63,7 +73,7 @@ onMounted(() => {
         <div class="banner-text">
           <h1 class="winner-name">{{ winner.name }} wins! 🏆</h1>
           <p v-if="distanceKm != null" class="winner-distance">
-            only {{ formatKm(distanceKm) }} away
+            only <span class="num">{{ formatKm(distanceKm) }}</span> away
           </p>
         </div>
       </template>
@@ -94,11 +104,13 @@ onMounted(() => {
   color: var(--text);
 }
 
+/* The photo keeps its dark frame so it pops off the paper. */
 .photo {
   flex: 1;
   min-height: 0;
   max-width: 100%;
   object-fit: contain;
+  background: var(--photo-bg);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
 }
@@ -116,24 +128,26 @@ onMounted(() => {
 .banner {
   display: flex;
   align-items: center;
-  gap: 22px;
+  gap: clamp(16px, 2vw, 32px);
 }
 
 .team-avatars {
   display: flex;
 }
 
+/* Overlapping faces: a paper ring keeps each one distinct. */
 .team-avatars .winner-avatar {
   margin-right: -18px;
+  box-shadow: 0 0 0 4px var(--bg);
 }
 
+/* The winner wears the one red. A hard ring, no glow. */
 .winner-avatar {
   width: clamp(72px, 11vh, 120px);
   height: clamp(72px, 11vh, 120px);
   border-radius: 50%;
-  border: 5px solid var(--accent);
+  border: clamp(4px, 0.45vw, 7px) solid var(--hot);
   background: #fff;
-  box-shadow: 0 0 40px rgba(251, 191, 36, 0.55);
 }
 
 .banner-text {
@@ -141,15 +155,20 @@ onMounted(() => {
 }
 
 .winner-name {
-  font-size: clamp(1.8rem, 4.5vw, 3.4rem);
-  color: var(--accent);
+  font-size: clamp(2rem, 5vw, 4rem);
+  color: var(--hot);
   animation: flash 0.9s ease-in-out 5;
 }
 
 .winner-distance {
   margin: 4px 0 0;
-  font-size: clamp(1rem, 2vw, 1.5rem);
+  font-size: clamp(1rem, 2vw, 1.6rem);
   color: var(--muted);
-  font-weight: 700;
+  font-weight: 600;
+}
+
+.winner-distance .num {
+  font-size: 1.25em;
+  color: var(--text);
 }
 </style>

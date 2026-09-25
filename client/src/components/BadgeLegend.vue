@@ -32,6 +32,10 @@ const defs = BADGE_ORDER.map((id) => BADGES[id])
   gap: 6px;
 }
 
+.legend strong {
+  font-weight: 600;
+}
+
 .rule {
   color: var(--muted);
 }

@@ -55,41 +55,48 @@ async function saveEdit(game: PreparedGame) {
 
 <template>
   <section class="card collections">
-    <header>
-      <h3>🗂️ Collections ({{ collections.length }})</h3>
-      <button class="btn small" @click="create">➕ New collection</button>
+    <header class="section-head">
+      <h3>Collections</h3>
+      <div class="head-right">
+        <span class="status-pill">
+          {{ collections.length }} collection{{ collections.length === 1 ? '' : 's' }}
+        </span>
+        <button class="btn btn-sm" @click="create">New collection</button>
+      </div>
     </header>
 
-    <p v-if="!collections.length" class="muted">
+    <p v-if="!collections.length" class="muted empty">
       A collection is a themed series of games (e.g. “Beaches of Europe”). Create one, then add
       games to it from the round setup or the image search.
     </p>
 
-    <div v-for="c in collections" :key="c.id" class="collection" :class="{ open: openId === c.id }">
-      <button class="collection-head" @click="toggle(c)">
-        <span class="chev">{{ openId === c.id ? '▾' : '▸' }}</span>
-        <span class="cname">{{ c.name }}</span>
-        <span class="count muted">{{ c.games.length }} game{{ c.games.length === 1 ? '' : 's' }}</span>
-      </button>
+    <ul v-else class="collection-list">
+      <li v-for="c in collections" :key="c.id" class="collection" :class="{ open: openId === c.id }">
+        <button class="collection-head" :aria-expanded="openId === c.id" @click="toggle(c)">
+          <span class="chev" aria-hidden="true">▸</span>
+          <span class="cname">{{ c.name }}</span>
+          <span class="count">{{ c.games.length }} game{{ c.games.length === 1 ? '' : 's' }}</span>
+        </button>
 
-      <div v-if="openId === c.id" class="collection-body">
-        <div class="collection-actions">
-          <button class="btn small" @click="rename(c)">✏️ Rename</button>
-          <button class="btn small btn-danger" @click="remove(c)">🗑️ Delete collection</button>
+        <div v-if="openId === c.id" class="collection-body">
+          <div class="collection-actions">
+            <button class="btn btn-sm" @click="rename(c)">Rename</button>
+            <button class="btn btn-sm btn-danger" @click="remove(c)">Delete collection</button>
+          </div>
+          <GameList
+            v-if="c.games.length"
+            :games="c.games"
+            :loaded-id="loadedId"
+            @load="(g) => load(c.id, g)"
+            @edit="(g) => (editing = { collectionId: c.id, game: g })"
+            @remove="(g) => removeGame(c.id, g)"
+          />
+          <p v-else class="muted empty">
+            Empty — pick this collection as the save target in “Round setup” or “Find images”.
+          </p>
         </div>
-        <GameList
-          v-if="c.games.length"
-          :games="c.games"
-          :loaded-id="loadedId"
-          @load="(g) => load(c.id, g)"
-          @edit="(g) => (editing = { collectionId: c.id, game: g })"
-          @remove="(g) => removeGame(c.id, g)"
-        />
-        <p v-else class="muted empty">
-          Empty — pick this collection as the save target in “Round setup” or “Find images”.
-        </p>
-      </div>
-    </div>
+      </li>
+    </ul>
 
     <GameEditModal
       v-if="editing"
@@ -104,64 +111,93 @@ async function saveEdit(game: PreparedGame) {
 .collections {
   display: flex;
   flex-direction: column;
-  gap: 10px;
 }
 
-header {
+.collections > .section-head {
+  margin-bottom: 6px;
+}
+
+.head-right {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 10px;
 }
 
-.collection {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
+.collection-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
 
-.collection.open {
-  border-color: var(--accent);
+.collection + .collection {
+  border-top: 1px solid var(--border);
 }
 
 .collection-head {
-  width: 100%;
+  width: calc(100% + 16px);
+  margin: 0 -8px;
   display: flex;
   align-items: center;
   gap: 10px;
-  background: var(--surface-2);
-  color: var(--text);
+  padding: 10px 8px;
+  background: none;
   border: none;
-  padding: 12px 14px;
-  font-size: 1rem;
-  font-weight: 700;
-  cursor: pointer;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
   text-align: left;
+  cursor: pointer;
+}
+
+.collection-head:hover {
+  background: var(--surface-2);
+}
+
+.collection-head:focus-visible {
+  outline: 2px solid var(--water);
+  outline-offset: -2px;
 }
 
 .chev {
-  color: var(--accent);
+  display: inline-block;
   width: 1em;
+  color: var(--muted);
+  transition: transform 0.15s ease;
+}
+
+.collection.open .chev {
+  transform: rotate(90deg);
 }
 
 .cname {
   flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .count {
-  font-size: 0.85rem;
+  flex-shrink: 0;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--land);
+  color: var(--muted);
+  font-size: 0.75rem;
   font-weight: 600;
+  line-height: 18px;
 }
 
+/* Indented under the chevron so the games read as belonging to this collection. */
 .collection-body {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 12px;
+  padding: 2px 0 14px 26px;
 }
 
 .collection-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   justify-content: flex-end;
 }
@@ -169,11 +205,5 @@ header {
 .empty {
   margin: 0;
   font-size: 0.9rem;
-}
-
-.btn.small {
-  min-height: 36px;
-  padding: 4px 12px;
-  font-size: 0.85rem;
 }
 </style>

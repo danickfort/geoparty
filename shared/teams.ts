@@ -2,10 +2,11 @@ import type { GameRecord } from './types.js'
 
 /** Fixed team identities: slot `index` in this palette → name + colour. */
 export const TEAM_PALETTE = [
-  { name: 'Red', color: '#f87171' },
-  { name: 'Blue', color: '#60a5fa' },
-  { name: 'Green', color: '#4ade80' },
-  { name: 'Purple', color: '#c084fc' },
+  // Ink-weight tones that read on the paper background (and on map tiles).
+  { name: 'Red', color: '#c2403a' },
+  { name: 'Blue', color: '#2f6fb0' },
+  { name: 'Green', color: '#2e8a4f' },
+  { name: 'Purple', color: '#7a4fb0' },
 ] as const
 
 export const MIN_TEAMS = 2

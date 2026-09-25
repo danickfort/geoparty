@@ -12,6 +12,8 @@
     "test": "node --import tsx --test tests/*.test.ts"
   },
   "dependencies": {
+    "@fontsource/barlow": "^5.3.0",
+    "@fontsource/barlow-condensed": "^5.3.0",
     "@maplibre/maplibre-gl-leaflet": "^0.1.4",
     "canvas-confetti": "^1.9.3",
     "express": "^5.1.0",

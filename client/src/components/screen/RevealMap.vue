@@ -5,6 +5,7 @@ import { formatKm } from '@shared/format'
 import type { RevealEntry } from '@shared/types'
 import { avatarIcon, flagIcon, useLeafletMap } from '@/composables/useLeafletMap'
 import { useGameStore } from '@/stores/game'
+import { PALETTE } from '@/styles/palette'
 
 const game = useGameStore()
 const mapEl = ref<HTMLElement | null>(null)
@@ -72,11 +73,11 @@ function drawAnswer(animate: boolean) {
   if (reveal.halfPointRadiusKm) {
     const circle = L.circle(reveal.answer, {
       radius: reveal.halfPointRadiusKm * 1000,
-      color: '#fbbf24',
+      color: PALETTE.pin,
       weight: 2,
       dashArray: '6 8',
-      fillColor: '#fbbf24',
-      fillOpacity: 0.1,
+      fillColor: PALETTE.pin,
+      fillOpacity: 0.08,
       interactive: false,
     }).addTo(m)
     bounds.extend(circle.getBounds())
@@ -84,12 +85,12 @@ function drawAnswer(animate: boolean) {
   for (const [playerId, marker] of markers) {
     bounds.extend(marker.getLatLng())
     const entry = reveal.order.find((e) => e.playerId === playerId)
-    // Dotted line from each guess to the true location.
+    // Dotted ink line from each guess to the true location.
     L.polyline([marker.getLatLng(), reveal.answer], {
-      color: (entry && teamOf(entry)?.color) || '#8fa1c7',
+      color: (entry && teamOf(entry)?.color) || PALETTE.muted,
       weight: 2,
-      dashArray: '4 10',
-      opacity: 0.85,
+      dashArray: '4 8',
+      opacity: 0.8,
     }).addTo(m)
   }
   m.flyToBounds(bounds.pad(0.25), { duration: 1.4, maxZoom: 6 })
@@ -105,7 +106,7 @@ function drawWinnerLine() {
   if (!winnerMarker || !player) return
   winnerMarker.setIcon(avatarIcon(player.avatar, { winner: true }))
   winnerLine = L.polyline([winnerMarker.getLatLng(), reveal.answer], {
-    color: '#fb7185',
+    color: PALETTE.pin,
     weight: 4,
     dashArray: '8 8',
   }).addTo(m)
@@ -144,8 +145,8 @@ const revealedCount = computed(() => game.reveal?.revealedCount ?? 0)
         <div>
           <strong>{{ toast.name }}</strong>
           <span v-if="toast.sub" class="place">{{ toast.sub }}</span>
-          <span>{{ formatKm(toast.distanceKm) }} away</span>
-          <span v-if="toastPlace" class="place">📍 near {{ toastPlace }}</span>
+          <span><b class="distance">{{ formatKm(toast.distanceKm) }}</b> away</span>
+          <span v-if="toastPlace" class="place">near {{ toastPlace }}</span>
         </div>
       </div>
     </Transition>
@@ -160,7 +161,7 @@ const revealedCount = computed(() => game.reveal?.revealedCount ?? 0)
     </Transition>
 
     <div v-if="!game.reveal?.answerRevealed" class="progress">
-      📍 {{ revealedCount }} / {{ revealedTotal }}
+      {{ revealedCount }} / {{ revealedTotal }}
     </div>
   </div>
 </template>
@@ -172,62 +173,80 @@ const revealedCount = computed(() => game.reveal?.revealedCount ?? 0)
   inset: 0;
 }
 
+/* The pin that just dropped: a paper legend card with a thick ink edge. */
 .toast {
   position: absolute;
-  top: 22px;
+  top: clamp(12px, 2vw, 32px);
   left: 50%;
   transform: translateX(-50%);
   z-index: 1000;
   display: flex;
   align-items: center;
-  gap: 14px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 10px 24px 10px 12px;
+  gap: clamp(12px, 1.4vw, 22px);
+  background: var(--bg);
+  border: clamp(3px, 0.35vw, 5px) solid var(--text);
+  border-radius: var(--radius);
+  padding: 10px 26px 10px 12px;
   box-shadow: var(--shadow);
+  color: var(--text);
+  width: max-content;
+  max-width: 90vw;
 }
 
 .toast img {
-  width: 52px;
-  height: 52px;
+  width: clamp(52px, 4.6vw, 80px);
+  height: clamp(52px, 4.6vw, 80px);
   border-radius: 50%;
-  border: 3px solid var(--accent);
+  border: 3px solid var(--text);
   background: #fff;
 }
 
 .toast div {
   display: flex;
   flex-direction: column;
+  line-height: 1.2;
 }
 
 .toast strong {
-  font-size: 1.3rem;
+  font-weight: 600;
+  font-size: clamp(1.3rem, 2.2vw, 2rem);
 }
 
 .toast span {
   color: var(--muted);
   font-weight: 600;
+  font-size: clamp(1rem, 1.5vw, 1.35rem);
+}
+
+.toast .distance {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  font-size: 1.3em;
+  color: var(--hot);
 }
 
 .toast .place {
-  color: var(--accent);
-  font-size: 0.95rem;
+  font-size: clamp(0.95rem, 1.3vw, 1.2rem);
 }
 
 .answer-place {
   position: absolute;
-  bottom: 24px;
+  bottom: clamp(16px, 2.4vw, 40px);
   left: 50%;
   transform: translateX(-50%);
   z-index: 1000;
-  background: var(--surface);
-  border: 1px solid var(--accent);
+  background: var(--bg);
+  border: clamp(2px, 0.3vw, 4px) solid var(--text);
   border-radius: 999px;
-  padding: 10px 26px;
-  font-weight: 800;
-  font-size: 1.25rem;
+  padding: 8px 26px;
+  color: var(--text);
+  font-weight: 600;
+  font-size: clamp(1.2rem, 2vw, 1.8rem);
   box-shadow: var(--shadow);
+  width: max-content;
+  max-width: 90vw;
+  text-align: center;
 }
 
 .toast-enter-active,
@@ -243,14 +262,18 @@ const revealedCount = computed(() => game.reveal?.revealedCount ?? 0)
 
 .progress {
   position: absolute;
-  bottom: 24px;
-  right: 24px;
+  bottom: clamp(16px, 2.4vw, 40px);
+  right: clamp(16px, 2.4vw, 40px);
   z-index: 1000;
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
   border-radius: 999px;
-  padding: 8px 18px;
-  font-weight: 800;
-  font-size: 1.1rem;
+  padding: 4px 20px;
+  color: var(--text);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(1.3rem, 2.4vw, 2.2rem);
+  line-height: 1.2;
 }
 </style>

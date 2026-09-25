@@ -3,6 +3,7 @@ import { onBeforeUnmount, ref, watch } from 'vue'
 import L from 'leaflet'
 import type { LatLng } from '@shared/types'
 import { flagIcon, onSingleClick, useLeafletMap } from '@/composables/useLeafletMap'
+import { PALETTE } from '@/styles/palette'
 
 const model = defineModel<LatLng | null>({ required: true })
 
@@ -42,10 +43,11 @@ function syncCircle() {
   if (!circle) {
     circle = L.circle(model.value, {
       radius: radiusKm * 1000,
-      color: '#fbbf24',
+      color: PALETTE.pin,
       weight: 2,
-      fillColor: '#fbbf24',
-      fillOpacity: 0.12,
+      dashArray: '6 6',
+      fillColor: PALETTE.pin,
+      fillOpacity: 0.08,
       interactive: false,
     }).addTo(m)
   } else {
@@ -75,13 +77,8 @@ onBeforeUnmount(() => {
 <template>
   <div class="picker">
     <div ref="mapEl" class="map"></div>
-    <p class="coords muted">
-      {{
-        model
-          ? `📍 ${model.lat.toFixed(4)}, ${model.lng.toFixed(4)}`
-          : 'Click the map to set the true location'
-      }}
-    </p>
+    <p v-if="model" class="coords num">{{ model.lat.toFixed(4) }}, {{ model.lng.toFixed(4) }}</p>
+    <p v-else class="coords hint">Click the map to set the true location</p>
   </div>
 </template>
 
@@ -95,7 +92,14 @@ onBeforeUnmount(() => {
 
 .coords {
   margin: 8px 0 0;
-  font-size: 0.9rem;
-  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.coords.num {
+  font-size: 0.95rem;
+}
+
+.coords.hint {
+  font-size: 0.8rem;
 }
 </style>

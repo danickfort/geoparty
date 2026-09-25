@@ -70,8 +70,14 @@ plus a catch-all 404. Components are grouped by role: `client/src/components/{ad
 - **TypeScript is strict**, with `noUnusedLocals` and `noUnusedParameters` on in both
   tsconfigs — unused imports/vars/params fail the build.
 - **Styling** uses the CSS custom properties defined in `client/src/styles/theme.css`
-  (`--surface`, `--border`, `--accent`, `--muted`, `--radius`, `--shadow`, …) and
-  responsive `clamp()` sizing. Reuse them instead of hard-coding colors or sizes.
+  (`--surface`, `--border`, `--accent`, `--muted`, `--hot`, `--ok`, `--radius`, …) and
+  responsive `clamp()` sizing. Reuse them instead of hard-coding colors or sizes. The
+  theme ("Atlas", spec in `docs/design/prototypes/index.html`) is light paper and navy
+  ink, with one red (`--hot`) for the current thing, urgency and the winner, and green
+  (`--ok`) for locked-in/ready. Fonts are self-hosted Barlow / Barlow Condensed
+  (`--font-body`, `--font-display`; changing numbers use the `.num` class). Leaflet
+  vectors can't read CSS variables — take their colours from `client/src/styles/palette.ts`
+  (a test keeps it in sync with theme.css).
 - **Map rendering** goes through the `useLeafletMap` composable — don't instantiate
   Leaflet directly in components.
 

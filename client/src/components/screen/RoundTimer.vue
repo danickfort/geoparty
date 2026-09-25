@@ -4,7 +4,8 @@ import { useGameStore } from '@/stores/game'
 import { useCountdown } from '@/composables/useCountdown'
 
 // The round countdown for the big screen: large enough to read from the back
-// of the room, red and pulsing for the last 30 seconds.
+// of the room, red and pulsing for the last 30 seconds. A paper pill with a
+// thick ink edge so it reads over any photo.
 const game = useGameStore()
 const endsAt = computed(() => game.timer?.endsAt ?? null)
 const offset = computed(() => game.serverOffset)
@@ -14,8 +15,8 @@ const urgent = computed(() => !game.timeUp && secondsLeft.value <= 30)
 
 <template>
   <div v-if="game.timer || game.timeUp" class="timer" :class="{ urgent, over: game.timeUp }" role="timer">
-    <template v-if="game.timeUp">⏰ Time's up!</template>
-    <template v-else><span class="icon">⏱</span>{{ label }}</template>
+    <template v-if="game.timeUp">Time's up!</template>
+    <template v-else>{{ label }}</template>
   </div>
 </template>
 
@@ -23,23 +24,19 @@ const urgent = computed(() => !game.timeUp && secondsLeft.value <= 30)
 .timer {
   display: inline-flex;
   align-items: center;
-  gap: 0.25em;
-  padding: 0.05em 0.55em;
+  padding: 0.02em 0.5em;
   border-radius: 999px;
-  background: rgba(21, 31, 56, 0.88);
-  border: 4px solid var(--border);
-  box-shadow: var(--shadow);
+  background: var(--bg);
+  border: clamp(3px, 0.35vw, 6px) solid var(--text);
+  /* Over a dark photo the paper needs a real drop shadow to lift off it. */
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.4);
   color: var(--text);
+  font-family: var(--font-display);
   font-size: clamp(2.6rem, 8vw, 6.5rem);
-  font-weight: 900;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.02em;
-  line-height: 1.15;
+  line-height: 1.1;
   white-space: nowrap;
-}
-
-.icon {
-  font-size: 0.6em;
 }
 
 /* Last 30 seconds: red and pulsing — scale, never fade, so it stays readable. */
@@ -53,17 +50,15 @@ const urgent = computed(() => !game.timeUp && secondsLeft.value <= 30)
   0%,
   100% {
     transform: scale(1);
-    box-shadow: var(--shadow);
   }
   50% {
     transform: scale(1.06);
-    box-shadow: 0 0 36px rgba(251, 113, 133, 0.55);
   }
 }
 
 .timer.over {
-  border-color: var(--accent);
-  color: var(--accent);
+  border-color: var(--hot);
+  color: var(--hot);
   font-size: clamp(2rem, 5.5vw, 4.5rem);
 }
 </style>

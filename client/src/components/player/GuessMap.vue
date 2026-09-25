@@ -140,36 +140,44 @@ onBeforeUnmount(() => {
     <RivalPicker v-if="showPicker" :auto-skip-seconds="DUEL_WINDOW_SECONDS" @close="showPicker = false" />
 
     <div class="bottom-bar" :class="{ locked: frozen }">
-      <div v-if="team" class="team-chip" :style="{ borderColor: team.color }">
-        <span class="dot" :style="{ background: team.color }"></span>
-        Team {{ team.name }}
-        <span class="muted">· {{ isCaptain ? 'you are captain 👑' : `captain ${captain?.name ?? '…'}` }}</span>
+      <div v-if="team || (game.timer && !frozen)" class="status-row">
+        <div v-if="team" class="team-chip" :style="{ borderColor: team.color }">
+          <span class="dot" :style="{ background: team.color }"></span>
+          <span class="team-name">Team {{ team.name }}</span>
+          <span class="muted">· {{ isCaptain ? 'you are captain 👑' : `captain ${captain?.name ?? '…'}` }}</span>
+        </div>
+        <p
+          v-if="game.timer && !frozen"
+          class="clock num"
+          :class="{ urgent: secondsLeft <= 30 }"
+          role="timer"
+          aria-label="Time left"
+        >
+          {{ clock }}
+        </p>
       </div>
-      <p v-if="game.timer && !frozen" class="clock" :class="{ urgent: secondsLeft <= 30 }">
-        ⏱ {{ clock }}
-      </p>
       <p v-if="game.timeUp && !player.lockedIn && !(isMember && captainLocked)" class="locked-msg over">
-        ⏰ Time's up!
+        <strong>Time's up!</strong>
         {{ isMember ? 'Watch the big screen…' : player.pin ? '' : 'No pin — you sit this one out.' }}
       </p>
       <template v-else-if="isMember">
-        <p v-if="captainLocked" class="locked-msg">🔒 {{ captain?.name }} locked it in! Watch the big screen…</p>
+        <p v-if="captainLocked" class="locked-msg">
+          <strong>{{ captain?.name }} locked it in!</strong> Watch the big screen…
+        </p>
         <p v-else class="hint">
-          💡 {{ player.pin ? 'Drag to adjust your suggestion' : 'Tap the map to suggest a spot' }} —
+          {{ player.pin ? 'Drag to adjust your suggestion' : 'Tap the map to suggest a spot' }} —
           {{ captain?.name ?? 'the captain' }} decides
         </p>
       </template>
       <template v-else-if="!player.lockedIn">
-        <p v-if="!player.pin" class="hint">
-          👆 Tap the map to drop {{ team ? "your team's" : 'your' }} pin
-        </p>
+        <p v-if="!player.pin" class="hint">Tap the map to drop {{ team ? "your team's" : 'your' }} pin</p>
         <p v-if="player.rival" class="hint rival-hint">⚔️ You challenged {{ player.rival.name }}</p>
-        <button class="btn btn-primary lock-btn" :disabled="!player.pin" @click="player.lockIn()">
-          🔒 Lock it in!
+        <button class="btn btn-go" :disabled="!player.pin" @click="player.lockIn()">
+          Lock it in
         </button>
       </template>
       <p v-else class="locked-msg">
-        🔒 Locked in! Watch the big screen…
+        <strong>Locked in!</strong> Watch the big screen…
         <span v-if="player.rival" class="rival-hint">⚔️ vs {{ player.rival.name }}</span>
       </p>
     </div>
@@ -179,6 +187,7 @@ onBeforeUnmount(() => {
 <style scoped>
 .guess {
   flex: 1;
+  min-height: 0;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -194,79 +203,99 @@ onBeforeUnmount(() => {
   flex: 1;
 }
 
+/* Docked under the map like a map legend: paper panel, hard ink edge. */
+.bottom-bar {
+  position: relative;
+  z-index: 1000;
+  padding: 10px 14px max(14px, env(safe-area-inset-bottom));
+  background: var(--surface);
+  border-top: 2px solid var(--text);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.status-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
 .team-chip {
-  align-self: center;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 12px;
+  min-width: 0;
+  padding: 3px 12px;
   border-radius: 999px;
   background: var(--surface);
   border: 2px solid var(--border);
-  font-weight: 800;
+  font-weight: 600;
   font-size: 0.85rem;
   white-space: nowrap;
+}
+
+.team-name {
+  color: var(--text);
 }
 
 .dot {
   width: 10px;
   height: 10px;
   border-radius: 50%;
+  flex-shrink: 0;
 }
 
-.bottom-bar {
-  position: relative;
-  z-index: 1000;
-  padding: 12px 16px max(14px, env(safe-area-inset-bottom));
-  background: var(--surface);
-  border-top: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+.clock {
+  margin: 0;
+  padding: 0 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  font-size: 1.6rem;
+  line-height: 1.3;
+  color: var(--text);
+}
+
+.clock.urgent {
+  color: var(--hot);
+  border-color: var(--hot);
 }
 
 .hint {
   margin: 0;
   text-align: center;
   color: var(--muted);
-  font-weight: 600;
+  font-weight: 500;
 }
 
-.lock-btn {
-  width: 100%;
-  font-size: 1.15rem;
-  min-height: 54px;
-}
 
 .rival-hint {
   display: block;
   color: var(--hot);
+  font-weight: 600;
   font-size: 0.95rem;
-}
-
-.clock {
-  margin: 0;
-  text-align: center;
-  font-weight: 900;
-  font-size: 1.4rem;
-  font-variant-numeric: tabular-nums;
-  color: var(--muted);
-}
-
-.clock.urgent {
-  color: var(--hot);
-}
-
-.locked-msg.over {
-  color: var(--accent);
 }
 
 .locked-msg {
   margin: 0;
+  padding: 10px 0;
   text-align: center;
-  font-weight: 800;
-  font-size: 1.1rem;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.locked-msg strong {
+  display: block;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.6rem;
+  line-height: 1.1;
   color: var(--ok);
-  padding: 12px 0;
+}
+
+.locked-msg.over strong {
+  color: var(--hot);
 }
 </style>

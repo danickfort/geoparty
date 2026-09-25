@@ -136,14 +136,16 @@ onBeforeUnmount(() => timers.forEach(clearTimeout))
     <header class="headline pop-in">
       <template v-if="isWinner">
         <div class="emoji">🏆</div>
-        <h2>{{ winnerTeam ? `Team ${winnerTeam.name} wins!` : 'You won!' }}</h2>
-        <p v-if="myEntry" class="sub">{{ formatKm(myEntry.distanceKm) }} from the spot</p>
+        <h2 class="won">{{ winnerTeam ? `Team ${winnerTeam.name} wins!` : 'You won!' }}</h2>
+        <p v-if="myEntry" class="sub">
+          <span class="num">{{ formatKm(myEntry.distanceKm) }}</span> from the spot
+        </p>
       </template>
       <template v-else-if="myEntry">
         <div class="emoji">📍</div>
-        <h2>#{{ myRank }} this round</h2>
+        <h2>#<span class="num">{{ myRank }}</span> this round</h2>
         <p class="sub">
-          {{ formatKm(myEntry.distanceKm) }} away<template v-if="winnerLabel"> · {{ winnerLabel }} takes it</template>
+          <span class="num">{{ formatKm(myEntry.distanceKm) }}</span> away<template v-if="winnerLabel"> · {{ winnerLabel }} takes it</template>
         </p>
       </template>
       <template v-else>
@@ -153,12 +155,12 @@ onBeforeUnmount(() => timers.forEach(clearTimeout))
       </template>
     </header>
 
-    <section v-if="player.me" class="tally card">
+    <section v-if="player.me" class="tally">
       <TransitionGroup name="row" tag="ul" class="rows">
         <li v-for="(r, i) in rows.slice(0, shown)" :key="i" class="row">
           <span class="icon">{{ r.icon }}</span>
           <span class="label">{{ r.label }}</span>
-          <span class="delta" :class="{ plus: r.delta > 0, minus: r.delta < 0, zero: r.delta === 0 }">
+          <span class="delta num" :class="{ plus: r.delta > 0, minus: r.delta < 0, zero: r.delta === 0 }">
             {{ fmtDelta(r.delta) }}
           </span>
         </li>
@@ -170,7 +172,7 @@ onBeforeUnmount(() => timers.forEach(clearTimeout))
 
       <div class="total" :class="{ settled }">
         <span class="label">Total</span>
-        <span class="value">{{ formatPoints(displayTotal) }}</span>
+        <span class="value num">{{ formatPoints(displayTotal) }}</span>
       </div>
 
       <Transition name="badges">
@@ -201,9 +203,9 @@ onBeforeUnmount(() => timers.forEach(clearTimeout))
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 18px;
+  gap: 16px;
   text-align: center;
-  padding: 24px 20px;
+  padding: calc(24px + env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
 }
 
 .headline {
@@ -214,29 +216,42 @@ onBeforeUnmount(() => timers.forEach(clearTimeout))
 }
 
 .emoji {
-  font-size: 3.6rem;
+  font-size: 3.2rem;
   line-height: 1;
   margin-bottom: 6px;
 }
 
 h2 {
-  font-size: 1.8rem;
+  font-size: 1.9rem;
   margin: 0;
+}
+
+h2.won {
+  color: var(--hot);
 }
 
 .sub {
   margin: 0;
-  font-weight: 700;
+  font-weight: 500;
   color: var(--muted);
 }
 
+.sub .num {
+  font-size: 1.15em;
+  color: var(--text);
+}
+
+/* Paper panel, ruled rows: green gains, red losses, a big condensed total. */
 .tally {
   width: 100%;
   max-width: 400px;
-  padding: 14px 18px;
+  padding: 6px 16px 14px;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
 }
 
 .rows {
@@ -245,7 +260,6 @@ h2 {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
   min-height: 40px;
 }
 
@@ -253,11 +267,10 @@ h2 {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 12px;
-  border-radius: var(--radius-sm);
-  background: var(--surface-2);
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
   text-align: left;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .muted-row {
@@ -265,9 +278,10 @@ h2 {
 }
 
 .icon {
-  font-size: 1.2rem;
+  font-size: 1.15rem;
   width: 1.6em;
   text-align: center;
+  flex-shrink: 0;
 }
 
 .label {
@@ -276,43 +290,36 @@ h2 {
 }
 
 .delta {
-  font-weight: 900;
-  font-variant-numeric: tabular-nums;
-  padding: 2px 10px;
-  border-radius: 999px;
+  font-size: 1.3rem;
+  line-height: 1;
 }
 
 .delta.plus {
-  color: var(--accent-contrast);
-  background: var(--accent);
+  color: var(--ok);
 }
 
 .delta.minus {
-  color: #fff;
-  background: var(--hot);
+  color: var(--hot);
 }
 
 .delta.zero {
   color: var(--muted);
-  border: 2px solid var(--border);
-  padding: 0 8px;
 }
 
 .total {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  padding: 10px 12px 2px;
-  border-top: 1px solid var(--border);
-  font-weight: 800;
+  padding: 4px 0 2px;
+  font-weight: 600;
   font-size: 1.05rem;
 }
 
 .total .value {
-  font-size: 1.9rem;
-  font-weight: 900;
-  color: var(--accent);
-  font-variant-numeric: tabular-nums;
+  font-size: 2.2rem;
+  line-height: 1;
+  color: var(--text);
+  transform-origin: right center;
   transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
@@ -323,7 +330,8 @@ h2 {
 .tally :deep(.chips) {
   align-self: center;
   justify-content: center;
-  margin-top: 4px;
+  margin-top: 2px;
+  font-size: 1.15rem;
 }
 
 .row-enter-active {
@@ -349,12 +357,12 @@ h2 {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  margin-top: 6px;
+  margin-top: 4px;
 }
 
 .title-change {
   margin: 0;
-  font-weight: 800;
+  font-weight: 600;
   color: var(--ok);
 }
 

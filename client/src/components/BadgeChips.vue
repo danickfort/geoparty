@@ -25,17 +25,19 @@ const tooltip = (b: Badge) => `${b.label} — ${b.detail ?? b.description}`
   vertical-align: middle;
 }
 
+/* Outlined paper pills. */
 .chip {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 2px 8px;
+  padding: 0 0.65em;
   border-radius: 999px;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  color: var(--muted);
   font-size: 0.7em;
-  font-weight: 700;
-  line-height: 1.4;
+  font-weight: 600;
+  line-height: 1.55;
   white-space: nowrap;
 }
 
