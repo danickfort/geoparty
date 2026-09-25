@@ -1,0 +1,32 @@
+/* Shared chrome for the GeoParty design prototypes. Deliberately plain so it
+   never competes with the design being shown inside the device frames. */
+.proto-nav{position:sticky;top:0;z-index:100;display:flex;align-items:center;gap:6px;padding:10px 20px;background:#151515;color:#cfcfcf;font:13px/1.2 system-ui,-apple-system,sans-serif}
+.proto-nav strong{color:#fff;margin-right:14px;font-weight:600}
+.proto-nav a{color:#bdbdbd;text-decoration:none;padding:6px 10px;border-radius:6px}
+.proto-nav a:hover{background:#2a2a2a;color:#fff}
+.proto-nav a[aria-current]{background:#fff;color:#111}
+.proto-nav .spacer{flex:1}
+.proto-nav .swatches{display:flex;gap:3px}
+.proto-nav .swatches i{width:14px;height:14px;border-radius:3px;display:block}
+.proto-section{padding:44px clamp(16px,4vw,56px) 24px}
+.proto-head{max-width:72ch;margin:0 0 22px;font:14px/1.5 system-ui,-apple-system,sans-serif;color:var(--caption,#777)}
+.proto-head h2{font:600 clamp(20px,2.4vw,26px)/1.2 system-ui,-apple-system,sans-serif;color:inherit;margin:0 0 6px;letter-spacing:-.01em}
+.proto-head p{margin:0 0 6px}
+.proto-row{display:flex;flex-wrap:wrap;gap:32px;align-items:flex-start}
+.device{position:relative;overflow:hidden;flex-shrink:0}
+.device.tv{width:600px;max-width:100%;aspect-ratio:16/9;border-radius:6px;border:5px solid #111;box-shadow:0 24px 50px rgba(0,0,0,.28);background:#000}
+.device.phone{width:280px;aspect-ratio:9/18.5;border-radius:36px;border:8px solid #111;box-shadow:0 24px 50px rgba(0,0,0,.28);background:#000}
+.device.phone.lg{width:370px;aspect-ratio:9/17.5}
+.device.desktop{width:100%;border-radius:10px;border:1px solid rgba(0,0,0,.18);box-shadow:0 30px 70px rgba(0,0,0,.22)}
+.device-cap{font:12px/1.45 system-ui,-apple-system,sans-serif;color:var(--caption,#777);margin:10px 0 0;width:0;min-width:100%}
+.device-wrap{display:flex;flex-direction:column;width:fit-content;max-width:100%}
+.tokens{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;max-width:1000px}
+.tokens .tk{border-radius:8px;overflow:hidden;font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;border:1px solid rgba(0,0,0,.12)}
+.tokens .tk i{display:block;height:56px}
+.tokens .tk span{display:block;padding:6px 8px}
+.tokens .tk span b{display:block;font-weight:600}
+.type-specimen{max-width:720px;margin-top:28px}
+.type-specimen p{margin:0 0 4px}
+.hidden-defs{position:absolute;width:0;height:0;overflow:hidden}
+@media (max-width:720px){.device.tv{width:100%}.device.phone{width:min(280px,100%)}.device.phone.lg{width:min(370px,100%)}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
