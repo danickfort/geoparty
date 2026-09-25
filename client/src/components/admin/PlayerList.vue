@@ -1,8 +1,12 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { formatPoints } from '@shared/format'
 import { useAdminStore } from '@/stores/admin'
 import { useGameStore } from '@/stores/game'
 import BadgeLegend from '@/components/BadgeLegend.vue'
+
+// `editOnOpen`: opened from the lobby roster's "Edit scores" — start in edit mode.
+const props = defineProps<{ editOnOpen?: boolean }>()
 
 const admin = useAdminStore()
 const game = useGameStore()
@@ -53,6 +57,10 @@ function startEditing() {
   editing.value = true
 }
 
+onMounted(() => {
+  if (props.editOnOpen && rows.value.length) startEditing()
+})
+
 function cancel() {
   editing.value = false
 }
@@ -92,28 +100,26 @@ function resetScores() {
 
 <template>
   <section class="card players">
-    <header>
-      <h3>👥 Players ({{ rows.length }})</h3>
+    <header class="section-head">
+      <h3>Players</h3>
       <div class="header-actions">
         <template v-if="editing">
-          <button class="btn small" @click="cancel">Cancel</button>
-          <button class="btn btn-primary small" :disabled="!valid" @click="save">
-            💾 Save scores
-          </button>
+          <button class="btn btn-sm" @click="cancel">Cancel</button>
+          <button class="btn btn-primary btn-sm" :disabled="!valid" @click="save">Save scores</button>
         </template>
         <template v-else-if="rows.length">
-          <button class="btn small" @click="startEditing">✏️ Edit scores</button>
-          <button class="btn btn-danger small" @click="resetScores">Reset scores</button>
+          <button class="btn btn-sm" @click="startEditing">Edit scores</button>
+          <button class="btn btn-danger btn-sm" @click="resetScores">Reset scores</button>
         </template>
       </div>
     </header>
 
     <p v-if="rows.length" class="muted note">
       <template v-if="editing">
-        Type new scores below — halves are allowed. Nothing is saved until you hit Save.
+        Type new scores below; halves are allowed. Nothing is saved until you hit Save.
       </template>
       <template v-else>
-        {{ inRoom }} of {{ rows.length }} in the room — players from earlier games are listed too.
+        {{ inRoom }} of {{ rows.length }} in the room. Players from earlier games are listed too.
       </template>
     </p>
 
@@ -127,10 +133,10 @@ function resetScores() {
         <img :src="`/avatars/${r.avatar}`" :alt="r.name" />
         <span class="name">
           {{ r.name }}
-          <em v-if="r.spectator" class="muted">(next round)</em>
-          <em v-else-if="!r.playerId" class="muted">(not here)</em>
+          <em v-if="r.spectator">plays next round</em>
+          <em v-else-if="!r.playerId">not here</em>
+          <em v-else-if="r.lockedIn && game.phase === 'guessing'" class="locked">locked in</em>
         </span>
-        <span v-if="r.lockedIn && game.phase === 'guessing'" title="Locked in">🔒</span>
 
         <input
           v-if="editing"
@@ -140,11 +146,11 @@ function resetScores() {
           step="0.5"
           :aria-label="`Score for ${r.name}`"
         />
-        <span v-else class="score">{{ r.score }} pt{{ r.score === 1 ? '' : 's' }}</span>
+        <span v-else class="score num">{{ formatPoints(r.score) }}</span>
 
         <button
           v-if="r.playerId && !editing"
-          class="btn btn-danger small"
+          class="btn btn-danger btn-sm"
           @click="kick(r.playerId, r.name)"
         >
           Kick
@@ -155,8 +161,10 @@ function resetScores() {
   </section>
 
   <section class="card titles">
-    <h3>🏷️ Titles</h3>
-    <p class="muted titles-note">Earned from recent games and recomputed after each one — they change hands.</p>
+    <header class="section-head">
+      <h3>Titles</h3>
+    </header>
+    <p class="muted titles-note">Earned from recent games and recomputed after each one. They change hands.</p>
     <BadgeLegend class="titles-legend" />
   </section>
 </template>
@@ -168,6 +176,10 @@ function resetScores() {
   gap: 10px;
 }
 
+.titles .section-head {
+  margin-bottom: 0;
+}
+
 .titles-note {
   margin: 0;
   font-size: 0.9rem;
@@ -177,22 +189,13 @@ function resetScores() {
   flex-direction: column;
 }
 
-.players header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 12px;
-  flex-wrap: wrap;
-}
-
 .header-actions {
   display: flex;
   gap: 8px;
 }
 
 .note {
-  margin: 0 0 12px;
+  margin: 0 0 6px;
   font-size: 0.9rem;
 }
 
@@ -202,21 +205,19 @@ ul {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
 }
 
 li {
   display: flex;
   align-items: center;
   gap: 10px;
-  background: var(--surface-2);
-  border-radius: var(--radius-sm);
-  padding: 8px 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
 }
 
 .dot {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: var(--danger);
   flex-shrink: 0;
@@ -228,12 +229,12 @@ li {
 
 /* Not in the room at all — neither here nor dropped mid-game. */
 .dot.offline {
-  background: var(--border);
+  background: var(--border-strong);
 }
 
 li img {
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   background: #fff;
 }
@@ -250,32 +251,37 @@ li img {
 
 .name {
   flex: 1;
-  font-weight: 700;
+  font-weight: 600;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  min-width: 0;
+}
+
+.name em {
+  font-style: normal;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.name em.locked {
+  color: var(--ok);
 }
 
 .score {
-  font-weight: 800;
-  color: var(--accent);
-  font-variant-numeric: tabular-nums;
+  font-size: 1.25rem;
+  min-width: 2.5ch;
+  text-align: right;
 }
 
 input[type='number'] {
   width: 84px;
-  min-height: 40px;
+  min-height: 38px;
   padding: 6px 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--bg);
-  color: var(--text);
-  font-size: 1rem;
-  font-weight: 800;
+  font-family: var(--font-display);
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
   text-align: center;
-}
-
-.btn.small {
-  min-height: 34px;
-  padding: 4px 12px;
-  font-size: 0.85rem;
 }
 </style>
