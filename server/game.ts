@@ -891,8 +891,10 @@ export class Game {
 
   toAdminState(): AdminState {
     const guesses: Record<string, LatLng> = {}
+    const livePins: Record<string, LatLng> = {}
     for (const p of this.players.values()) {
       if (p.lockedIn && p.guess) guesses[p.id] = p.guess
+      else if (!p.lockedIn && p.livePin) livePins[p.id] = p.livePin
     }
     return {
       ...this.toPublicState(),
@@ -904,6 +906,7 @@ export class Game {
       roundRivalCallouts: this.rivalCallouts,
       roundTimerSeconds: this.timerSeconds,
       guesses,
+      livePins,
       preparedGames: this.preparedGames,
       collections: this.collections,
       unpostedGames: this.getUnpostedGames(),

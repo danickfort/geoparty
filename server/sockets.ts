@@ -39,6 +39,16 @@ export function setupSockets(io: IO, game: Game): void {
   }
   const emitTeamLive = (teamId: string) =>
     io.to(teamRoom(teamId)).emit('team:live', { pins: game.teamLivePins(teamId) })
+  // Draft pins move a few times a second per player; coalesce them into one
+  // admin push per interval instead of re-sending the whole admin state each time.
+  let adminPushTimer: ReturnType<typeof setTimeout> | null = null
+  const scheduleAdminPush = () => {
+    if (adminPushTimer) return
+    adminPushTimer = setTimeout(() => {
+      adminPushTimer = null
+      io.to('admins').emit('admin:state', game.toAdminState())
+    }, 500)
+  }
 
   const grantAdmin = (socket: AppSocket) => {
     socket.data.role = 'admin'
@@ -103,6 +113,7 @@ export function setupSockets(io: IO, game: Game): void {
       if (!playerId) return
       const result = game.suggest(playerId, pin)
       if (result.ok && result.teamId) emitTeamLive(result.teamId)
+      if (result.ok) scheduleAdminPush()
     })
 
     socket.on('player:callOutRival', ({ targetAvatar }, ack) => {
