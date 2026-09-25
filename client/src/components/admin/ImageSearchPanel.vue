@@ -56,7 +56,12 @@ async function saveForLater(r: ImageSearchResult) {
 
 <template>
   <section class="card search">
-    <h3>🔍 Find a place on the web</h3>
+    <header class="section-head">
+      <h3>Find a place on the web</h3>
+      <span v-if="results?.length" class="status-pill">
+        {{ results.length }} result{{ results.length === 1 ? '' : 's' }}
+      </span>
+    </header>
     <p class="muted note">
       Searches Wikipedia articles and Wikimedia Commons photos for places with a photo and
       coordinates — try “beach in Portugal”, “Matterhorn” or “lighthouse Brittany”.
@@ -70,27 +75,29 @@ async function saveForLater(r: ImageSearchResult) {
     </form>
     <SaveTargetPicker v-if="results?.length" v-model="saveTarget" />
     <p v-if="error" class="error-text">{{ error }}</p>
-    <p v-else-if="results && !results.length" class="muted">
+    <p v-else-if="results && !results.length" class="muted note">
       No results with both a photo and a location — try different words.
     </p>
 
-    <div v-if="results?.length" class="grid">
-      <div v-for="r in results" :key="r.pageUrl" class="hit">
-        <img :src="r.thumbUrl" :alt="r.title" loading="lazy" />
-        <span class="badge" :class="r.source">{{ r.source === 'commons' ? '📷 Commons' : '📖 Wikipedia' }}</span>
+    <ul v-if="results?.length" class="grid">
+      <li v-for="r in results" :key="r.pageUrl" class="hit">
+        <div class="photo">
+          <img :src="r.thumbUrl" :alt="r.title" loading="lazy" />
+          <span class="badge" :class="r.source">{{ r.source === 'commons' ? 'Commons' : 'Wikipedia' }}</span>
+        </div>
         <div class="hit-body">
           <strong>{{ r.title }}</strong>
-          <span v-if="r.description" class="muted desc">{{ r.description }}</span>
-          <span class="muted coords">📍 {{ r.lat.toFixed(3) }}, {{ r.lng.toFixed(3) }}</span>
+          <span v-if="r.description" class="desc">{{ r.description }}</span>
+          <span class="coords">{{ r.lat.toFixed(3) }}, {{ r.lng.toFixed(3) }}</span>
           <div class="hit-actions">
-            <button class="btn small" @click="useForRound(r)">🎯 Use for round</button>
-            <button class="btn small" @click="saveForLater(r)">
-              {{ savedTitle === r.title ? '✓ Saved' : '📚 Save' }}
+            <button class="btn btn-sm" @click="useForRound(r)">Use for round</button>
+            <button class="btn btn-sm" :class="{ saved: savedTitle === r.title }" @click="saveForLater(r)">
+              {{ savedTitle === r.title ? 'Saved' : 'Save' }}
             </button>
           </div>
         </div>
-      </div>
-    </div>
+      </li>
+    </ul>
   </section>
 </template>
 
@@ -101,9 +108,15 @@ async function saveForLater(r: ImageSearchResult) {
   gap: 12px;
 }
 
-.note {
+.search > .section-head {
+  margin-bottom: 0;
+}
+
+.note,
+.error-text {
   margin: 0;
   font-size: 0.9rem;
+  line-height: 1.4;
 }
 
 .bar {
@@ -113,56 +126,73 @@ async function saveForLater(r: ImageSearchResult) {
 
 .bar input {
   flex: 1;
+  min-width: 0;
 }
 
+/* Results sit straight on the page: a dark-framed photo, text beneath, no box. */
 .grid {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 20px 16px;
 }
 
 .hit {
-  position: relative;
   display: flex;
   flex-direction: column;
-  background: var(--surface-2);
+  min-width: 0;
+}
+
+.photo {
+  position: relative;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   overflow: hidden;
+  background: var(--photo-bg);
+}
+
+.photo img {
+  display: block;
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
 }
 
 .badge {
   position: absolute;
   top: 8px;
   left: 8px;
-  padding: 2px 8px;
+  padding: 0 8px;
+  border: 1px solid var(--border-strong);
   border-radius: 999px;
-  font-size: 0.72rem;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.7rem;
   font-weight: 600;
-  color: #fff;
-  background: rgba(5, 8, 15, 0.72);
-  backdrop-filter: blur(2px);
-}
-
-.hit img {
-  width: 100%;
-  height: 140px;
-  object-fit: cover;
-  background: #05080f;
+  line-height: 18px;
 }
 
 .hit-body {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 10px 12px 12px;
+  gap: 3px;
+  padding-top: 8px;
+}
+
+.hit-body strong {
+  font-weight: 600;
+  line-height: 1.25;
 }
 
 .desc {
+  color: var(--muted);
   font-size: 0.85rem;
 }
 
 .coords {
+  color: var(--muted);
   font-size: 0.8rem;
   font-variant-numeric: tabular-nums;
 }
@@ -174,9 +204,8 @@ async function saveForLater(r: ImageSearchResult) {
   flex-wrap: wrap;
 }
 
-.btn.small {
-  min-height: 34px;
-  padding: 4px 10px;
-  font-size: 0.85rem;
+.btn.saved {
+  color: var(--ok);
+  border-color: var(--ok);
 }
 </style>

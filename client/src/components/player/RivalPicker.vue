@@ -44,20 +44,25 @@ async function pick(avatar: string) {
   <div class="picker pop-in">
     <div class="emoji">⚔️</div>
     <h2>Rival duels</h2>
-    <p class="muted">Challenge a neighbour. Beat their guess: <strong>+1</strong>. Lose: <strong>−0.5</strong>.</p>
+    <p class="muted rules">
+      Challenge a neighbour. Beat their guess: <strong class="gain num">+1</strong>. Lose:
+      <strong class="loss num">−0.5</strong>.
+    </p>
 
     <div v-if="player.eligibleRivals.length" class="list">
       <button
         v-for="p in player.eligibleRivals"
         :key="p.avatar"
-        class="rival card"
+        class="rival"
         :disabled="busy"
         @click="pick(p.avatar)"
       >
         <img :src="`/avatars/${p.avatar}`" :alt="p.name" />
         <span class="who">
           <strong>{{ p.name }}</strong>
-          <span class="muted">{{ p.score }} pt{{ p.score === 1 ? '' : 's' }}</span>
+          <span class="muted"
+            ><span class="num pts">{{ p.score }}</span> pt{{ p.score === 1 ? '' : 's' }}</span
+          >
         </span>
         <span class="go">⚔️</span>
       </button>
@@ -68,7 +73,7 @@ async function pick(avatar: string) {
       <div class="bar">
         <div class="fill" :style="{ width: `${(secondsLeft / autoSkipSeconds) * 100}%` }"></div>
       </div>
-      <span class="muted">Skipping in <strong>{{ secondsLeft }}</strong>s…</span>
+      <span class="muted">Skipping in <strong class="num">{{ secondsLeft }}</strong>s…</span>
     </div>
 
     <button class="btn skip" @click="emit('close')">No thanks</button>
@@ -80,77 +85,122 @@ async function pick(avatar: string) {
   position: absolute;
   inset: 0;
   z-index: 1100;
-  background: var(--bg);
+  background: var(--bg) var(--contours);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
-  padding: 24px 20px max(20px, env(safe-area-inset-bottom));
+  gap: 10px;
+  padding: calc(24px + env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
   text-align: center;
   overflow-y: auto;
 }
 
 .emoji {
-  font-size: 3.4rem;
+  font-size: 3.2rem;
+  line-height: 1;
 }
 
 h2 {
-  font-size: 1.6rem;
+  font-size: 1.85rem;
 }
 
 .picker p {
   margin: 0;
 }
 
-.picker strong {
-  color: var(--accent);
+.rules {
+  max-width: 34ch;
 }
 
+.rules strong {
+  font-size: 1.15em;
+}
+
+.gain {
+  color: var(--ok);
+}
+
+.loss {
+  color: var(--hot);
+}
+
+/* One paper panel, rivals as ruled rows. */
 .list {
   width: 100%;
   max-width: 420px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
   margin-top: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
 }
 
 .rival {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 10px 16px;
+  gap: 12px;
+  min-height: 64px;
+  padding: 10px 14px;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
   text-align: left;
   color: var(--text);
   font: inherit;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.rival:last-child {
+  border-bottom: none;
+}
+
+.rival:hover:not(:disabled),
+.rival:active:not(:disabled) {
+  background: var(--surface-2);
+}
+
+.rival:focus-visible {
+  outline: 2px solid var(--water);
+  outline-offset: -2px;
 }
 
 .rival:disabled {
   opacity: 0.6;
+  cursor: default;
 }
 
 .rival img {
-  width: 52px;
-  height: 52px;
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
   border-radius: 50%;
-  border: 3px solid var(--accent);
+  border: 2px solid var(--text);
   background: #fff;
 }
 
 .who {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
+  line-height: 1.25;
 }
 
 .who strong {
-  color: var(--text);
   font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.pts {
+  font-size: 1.1rem;
+  color: var(--text);
 }
 
 .go {
-  font-size: 1.4rem;
+  font-size: 1.3rem;
 }
 
 .empty {
@@ -165,17 +215,17 @@ h2 {
   gap: 6px;
   margin-top: 8px;
   font-size: 0.95rem;
-  font-variant-numeric: tabular-nums;
 }
 
 .countdown strong {
   color: var(--text);
+  font-size: 1.15em;
 }
 
 .bar {
   height: 6px;
   border-radius: 999px;
-  background: var(--surface-2);
+  background: var(--surface);
   border: 1px solid var(--border);
   overflow: hidden;
 }
@@ -183,7 +233,7 @@ h2 {
 .fill {
   height: 100%;
   border-radius: inherit;
-  background: var(--accent);
+  background: var(--text);
   transition: width 1s linear;
 }
 
@@ -191,5 +241,6 @@ h2 {
   margin-top: auto;
   width: 100%;
   max-width: 420px;
+  min-height: 50px;
 }
 </style>

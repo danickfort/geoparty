@@ -50,7 +50,7 @@ const errorMessages: Record<string, string> = {
 <template>
   <div class="join">
     <header>
-      <h1>🌍 GeoParty</h1>
+      <h1>GeoParty</h1>
       <p class="muted">Pick your character to join</p>
     </header>
 
@@ -75,7 +75,7 @@ const errorMessages: Record<string, string> = {
     </p>
 
     <div class="footer">
-      <button class="btn btn-primary join-btn" :disabled="!selected" @click="player.join(selected!)">
+      <button class="btn btn-go" :disabled="!selected" @click="player.join(selected!)">
         {{ selected ? `Join as ${prettyName(selected)}` : 'Pick an avatar' }}
       </button>
     </div>
@@ -85,9 +85,10 @@ const errorMessages: Record<string, string> = {
 <style scoped>
 .join {
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: 20px 16px 0;
+  padding: calc(22px + env(safe-area-inset-top)) 14px 0;
   max-width: 520px;
   margin: 0 auto;
   width: 100%;
@@ -95,7 +96,7 @@ const errorMessages: Record<string, string> = {
 
 header {
   text-align: center;
-  margin-bottom: 18px;
+  margin-bottom: 14px;
 }
 
 header h1 {
@@ -103,17 +104,18 @@ header h1 {
 }
 
 header p {
-  margin: 6px 0 0;
+  margin: 2px 0 0;
+  font-size: 0.9rem;
 }
 
 .grid {
   flex: 1;
   overflow-y: auto;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 8px;
   align-content: start;
-  padding-bottom: 12px;
+  padding: 2px 2px 12px;
 }
 
 .slot {
@@ -122,22 +124,36 @@ header p {
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  padding: 10px 6px;
+  min-height: 44px;
+  padding: 12px 4px 10px;
   background: var(--surface);
-  border: 2px solid var(--border);
-  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
   color: var(--text);
+  font-family: inherit;
   cursor: pointer;
-  transition: border-color 0.15s ease, transform 0.1s ease;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    border-color 0.15s ease,
+    transform 0.1s ease;
+}
+
+.slot:hover:not(:disabled) {
+  border-color: var(--border-strong);
 }
 
 .slot:active:not(:disabled) {
-  transform: scale(0.95);
+  transform: scale(0.96);
+}
+
+.slot:focus-visible {
+  outline: 2px solid var(--water);
+  outline-offset: 2px;
 }
 
 .slot.selected {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.35);
+  border-color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--text);
 }
 
 .slot.taken {
@@ -146,22 +162,24 @@ header p {
 }
 
 .slot img {
-  width: 56px;
-  height: 56px;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
   background: #fff;
+  box-shadow: 0 0 0 1px var(--border);
 }
 
 .slot-name {
-  font-size: 0.78rem;
-  font-weight: 700;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.2;
 }
 
 .badge {
   position: absolute;
   top: 4px;
   right: 6px;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
 }
 
 .error-text {
@@ -172,12 +190,8 @@ header p {
 .footer {
   position: sticky;
   bottom: 0;
-  padding: 12px 0 max(16px, env(safe-area-inset-bottom));
-  background: linear-gradient(transparent, var(--bg) 30%);
+  padding: 12px 0 max(14px, env(safe-area-inset-bottom));
+  background: linear-gradient(transparent, var(--bg) 40%);
 }
 
-.join-btn {
-  width: 100%;
-  font-size: 1.1rem;
-}
 </style>

@@ -150,7 +150,9 @@ async function saveForLater() {
 
 <template>
   <section class="card finder">
-    <h3>🛣️ Find a Street View</h3>
+    <header class="section-head">
+      <h3>Find a Street View</h3>
+    </header>
     <p class="muted note">
       Search a place or click the map. The pin snaps to the nearest panorama and Google's view of it
       opens below.
@@ -165,13 +167,13 @@ async function saveForLater() {
     <p v-if="searchError" class="error-text">{{ searchError }}</p>
     <ul v-if="hits.length" class="hits">
       <li v-for="h in hits" :key="`${h.lat},${h.lng}`">
-        <button class="btn small" @click="goTo(h)">📍 {{ h.label }}</button>
+        <button class="hit" @click="goTo(h)">{{ h.label }}</button>
       </li>
     </ul>
 
     <div ref="mapEl" class="map"></div>
 
-    <p v-if="looking" class="muted note">⏳ Looking for a panorama…</p>
+    <p v-if="looking" class="muted note">Looking for a panorama…</p>
     <p v-else-if="lookupError" class="error-text">{{ lookupError }}</p>
     <p v-else-if="!pano" class="muted note">Click the map to drop a pin.</p>
 
@@ -185,20 +187,22 @@ async function saveForLater() {
         ></iframe>
       </div>
       <label class="field">
-        <span>Starting direction: {{ heading }}°</span>
+        <span class="label">Starting direction: <span class="num">{{ heading }}°</span></span>
         <input v-model.number="heading" type="range" min="0" max="359" step="1" />
       </label>
       <p class="muted note">
         Walking inside the preview doesn't move the round — the pin does. Found a better spot? Open it
         in Google Maps, walk there, and paste that link into Round setup.
       </p>
-      <div class="actions">
-        <button class="btn btn-primary" @click="useForRound">🎯 Use for round</button>
-        <a class="btn" :href="link" target="_blank" rel="noopener">↗ Open in Google Maps</a>
+      <div class="buttons">
+        <button class="btn btn-primary" @click="useForRound">Use for round</button>
+        <a class="btn" :href="link" target="_blank" rel="noopener">Open in Google Maps ↗</a>
       </div>
       <div class="save-later">
         <SaveTargetPicker v-model="saveTarget" />
-        <button class="btn" @click="saveForLater">{{ saved ? '✓ Saved for later' : '📚 Save for later' }}</button>
+        <button class="btn" :class="{ saved }" @click="saveForLater">
+          {{ saved ? 'Saved for later' : 'Save for later' }}
+        </button>
       </div>
     </template>
   </section>
@@ -211,7 +215,12 @@ async function saveForLater() {
   gap: 12px;
 }
 
-.note {
+.finder > .section-head {
+  margin-bottom: 0;
+}
+
+.note,
+.error-text {
   margin: 0;
   font-size: 0.9rem;
   line-height: 1.4;
@@ -224,28 +233,45 @@ async function saveForLater() {
 
 .bar input {
   flex: 1;
+  min-width: 0;
 }
 
+/* Place matches: a ruled list of link-like rows. */
 .hits {
   list-style: none;
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
 }
 
-.hits .btn {
-  width: 100%;
-  justify-content: flex-start;
+.hits li + li {
+  border-top: 1px solid var(--border);
+}
+
+.hit {
+  display: block;
+  width: calc(100% + 16px);
+  margin: 0 -8px;
+  padding: 9px 8px;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--water);
+  font: inherit;
+  font-weight: 500;
   text-align: left;
+  cursor: pointer;
 }
 
-.btn.small {
-  min-height: 36px;
-  padding: 6px 12px;
-  font-size: 0.88rem;
-  font-weight: 600;
+.hit:hover {
+  background: var(--surface-2);
+  text-decoration: underline;
+}
+
+.hit:focus-visible {
+  outline: 2px solid var(--water);
+  outline-offset: -2px;
 }
 
 .map {
@@ -260,10 +286,11 @@ async function saveForLater() {
   border-radius: var(--radius-sm);
   overflow: hidden;
   border: 1px solid var(--border);
-  background: #05080f;
+  background: var(--photo-bg);
 }
 
 .embed iframe {
+  display: block;
   width: 100%;
   height: 100%;
   border: 0;
@@ -273,29 +300,46 @@ async function saveForLater() {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  font-weight: 700;
-  font-size: 0.9rem;
+}
+
+.label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.label .num {
+  font-size: 1rem;
 }
 
 .field input[type='range'] {
-  accent-color: var(--accent);
+  accent-color: var(--text);
 }
 
-.actions {
+.buttons {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
-.actions a.btn {
+.buttons a.btn {
   text-decoration: none;
 }
 
 .save-later {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
   border-top: 1px solid var(--border);
   padding-top: 12px;
+}
+
+.save-later :deep(.target) {
+  flex: 1 1 240px;
+}
+
+.btn.saved {
+  color: var(--ok);
+  border-color: var(--ok);
 }
 </style>

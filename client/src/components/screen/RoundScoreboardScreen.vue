@@ -52,7 +52,7 @@ const fmt = (n: number) => (n > 0 ? `+${n}` : `${n}`.replace('-', '−'))
 
 <template>
   <div class="round-scoreboard">
-    <h1>📍 This round</h1>
+    <h1 class="board-head">This round</h1>
     <div v-if="rows.length > 0" class="rows">
       <div
         v-for="(r, i) in rows"
@@ -88,7 +88,7 @@ const fmt = (n: number) => (n > 0 ? `+${n}` : `${n}`.replace('-', '−'))
     <p v-else class="empty">Nobody guessed this round 😅</p>
 
     <section v-if="game.badgeChanges.length" class="titles">
-      <h2>🏷️ Titles</h2>
+      <h2>Titles</h2>
       <div
         v-for="(c, i) in game.badgeChanges"
         :key="c.badge.id"
@@ -117,42 +117,42 @@ const fmt = (n: number) => (n > 0 ? `+${n}` : `${n}`.replace('-', '−'))
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4vh;
+  gap: 1vh;
   padding: 4vh 4vw;
 }
 
-h1 {
+/* Title over a thick ink rule, like the head of a map legend. */
+.board-head {
+  width: min(640px, 92vw);
   font-size: clamp(2rem, 5.5vw, 4rem);
+  padding-bottom: 0.15em;
+  border-bottom: clamp(3px, 0.35vw, 6px) solid var(--text);
 }
 
 .rows {
   display: flex;
   flex-direction: column;
-  gap: 12px;
   width: min(640px, 92vw);
   max-height: 70vh;
   overflow-y: auto;
 }
 
+/* Rows are separated by thin rules, no cards. */
 .row {
   display: flex;
   align-items: center;
   gap: 16px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 12px 20px;
-}
-
-.row.leader {
-  border-color: var(--accent);
-  box-shadow: 0 0 24px rgba(251, 191, 36, 0.25);
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
 }
 
 .rank {
   width: 2.4em;
-  font-size: 1.5rem;
-  font-weight: 800;
+  font-family: var(--font-display);
+  font-size: clamp(1.4rem, 2.6vw, 2rem);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
 }
 
 .faces {
@@ -163,7 +163,7 @@ h1 {
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  border: 3px solid var(--accent);
+  border: 2px solid var(--border-strong);
   background: #fff;
 }
 
@@ -172,25 +172,41 @@ h1 {
   height: 40px;
   margin-left: -14px;
   align-self: flex-end;
+  box-shadow: 0 0 0 2px var(--bg);
+}
+
+/* Closest this round: rank, distance and a paper + red ring in the one red. */
+.row.leader .rank,
+.row.leader .distance {
+  color: var(--hot);
+}
+
+.row.leader img:first-child {
+  box-shadow:
+    0 0 0 3px var(--bg),
+    0 0 0 6px var(--hot);
 }
 
 .name {
   flex: 1;
   font-size: clamp(1.1rem, 2.6vw, 1.7rem);
-  font-weight: 800;
+  font-weight: 600;
   display: flex;
   flex-direction: column;
+  line-height: 1.25;
 }
 
 .duel {
   display: inline-block;
   margin-left: 8px;
   vertical-align: middle;
-  font-size: 0.6em;
-  font-weight: 900;
-  padding: 1px 8px;
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.7em;
+  font-weight: 700;
+  padding: 0 9px;
   border-radius: 999px;
-  color: #04120c;
+  color: #fff;
   background: var(--ok);
 }
 
@@ -200,16 +216,19 @@ h1 {
 }
 
 .place {
-  font-size: clamp(0.8rem, 1.6vw, 1rem);
+  font-size: clamp(0.8rem, 1.6vw, 1.05rem);
   font-weight: 600;
   font-style: normal;
   color: var(--muted);
 }
 
 .distance {
-  font-size: clamp(1.2rem, 2.6vw, 1.9rem);
-  font-weight: 900;
-  color: var(--accent);
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 3.4vw, 2.6rem);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  white-space: nowrap;
 }
 
 .empty {
@@ -222,22 +241,28 @@ h1 {
   flex-direction: column;
   align-items: center;
   gap: 10px;
+  margin-top: 3vh;
 }
 
 .titles h2 {
-  font-size: clamp(1.2rem, 2.6vw, 1.8rem);
+  font-size: clamp(1.4rem, 3vw, 2.2rem);
 }
 
+/* Outlined paper pills, one per title that changed hands. */
 .title-row {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  padding: 6px 18px;
+  padding: 4px 18px 4px 12px;
   border-radius: 999px;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
   font-size: clamp(1rem, 1.9vw, 1.4rem);
   white-space: nowrap;
+}
+
+.title-row strong {
+  font-weight: 600;
 }
 
 .title-row .emoji {
@@ -248,12 +273,12 @@ h1 {
   width: 1.8em;
   height: 1.8em;
   border-radius: 50%;
-  border: 2px solid var(--accent);
+  border: 2px solid var(--border-strong);
   background: #fff;
 }
 
 .arrow {
-  color: var(--accent);
-  font-weight: 900;
+  color: var(--text);
+  font-weight: 700;
 }
 </style>

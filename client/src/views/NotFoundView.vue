@@ -6,10 +6,10 @@ import { RouterLink } from 'vue-router'
   <div class="not-found">
     <div class="card">
       <div class="emoji">🧭</div>
-      <h1>404</h1>
+      <h1 class="num">404</h1>
       <p class="lead">You wandered off the map.</p>
       <p class="sub">This page doesn't exist — let's get you back to the party.</p>
-      <RouterLink class="home" to="/">Back to home</RouterLink>
+      <RouterLink class="btn btn-primary home" to="/">Back to home</RouterLink>
     </div>
   </div>
 </template>
@@ -20,7 +20,7 @@ import { RouterLink } from 'vue-router'
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 4vh 4vw;
+  padding: max(4vh, env(safe-area-inset-top)) 4vw max(4vh, env(safe-area-inset-bottom));
 }
 
 .card {
@@ -28,7 +28,7 @@ import { RouterLink } from 'vue-router'
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 12px;
+  gap: 10px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -38,42 +38,38 @@ import { RouterLink } from 'vue-router'
 }
 
 .emoji {
-  font-size: clamp(3rem, 10vw, 5rem);
+  font-size: clamp(3rem, 10vw, 4.5rem);
+  line-height: 1;
 }
 
 h1 {
-  font-size: clamp(3rem, 12vw, 5.5rem);
-  font-weight: 900;
+  font-size: clamp(3.5rem, 14vw, 6rem);
   line-height: 1;
-  color: var(--accent);
+  color: var(--hot);
   margin: 0;
 }
 
 .lead {
-  font-size: clamp(1.2rem, 3.2vw, 1.8rem);
-  font-weight: 800;
+  font-family: var(--font-display);
+  font-size: clamp(1.4rem, 3.6vw, 2rem);
+  font-weight: 700;
+  line-height: 1.15;
   margin: 0;
 }
 
 .sub {
   color: var(--muted);
-  font-size: clamp(0.95rem, 2.4vw, 1.15rem);
+  font-size: clamp(0.95rem, 2.4vw, 1.1rem);
   max-width: 34ch;
   margin: 0;
 }
 
 .home {
   margin-top: 12px;
-  padding: 12px 24px;
-  border-radius: var(--radius-sm);
-  background: var(--accent);
-  color: var(--accent-contrast);
-  font-weight: 800;
+  min-width: 12rem;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 700;
   text-decoration: none;
-  transition: transform 0.1s ease;
-}
-
-.home:hover {
-  transform: translateY(-2px);
 }
 </style>

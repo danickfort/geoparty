@@ -35,6 +35,7 @@ function pick(key: string) {
 </template>
 
 <style scoped>
+/* Segmented control on a paper strip with an ink edge — no floating glow. */
 .layer-toggle {
   position: absolute;
   top: calc(10px + env(safe-area-inset-top));
@@ -42,32 +43,37 @@ function pick(key: string) {
   transform: translateX(-50%);
   z-index: 1000;
   display: flex;
-  gap: 4px;
+  gap: 2px;
   background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 4px;
-  box-shadow: var(--shadow);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 3px;
 }
 
 .layer-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 40px;
+  min-height: 44px;
   padding: 6px 14px;
   border: none;
-  border-radius: 999px;
+  border-radius: 4px;
   background: transparent;
   color: var(--muted);
-  font-size: 0.85rem;
-  font-weight: 700;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
 
+.layer-btn:focus-visible {
+  outline: 2px solid var(--water);
+  outline-offset: 1px;
+}
+
 .layer-btn.active {
-  background: var(--accent);
+  background: var(--text);
   color: var(--accent-contrast);
 }
 

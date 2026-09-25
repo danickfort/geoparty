@@ -40,16 +40,18 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
       </button>
       <div class="info">
         <strong>{{ g.name }}</strong>
-        <span class="muted coords">
-          📍 {{ g.answer.lat.toFixed(3) }}, {{ g.answer.lng.toFixed(3) }}
-        </span>
+        <span class="coords">{{ g.answer.lat.toFixed(3) }}, {{ g.answer.lng.toFixed(3) }}</span>
       </div>
       <div class="actions">
-        <button class="btn small btn-primary" @click="emit('load', g)">
-          {{ loadedId === g.id ? '✓ Loaded' : '▶ Load' }}
+        <button
+          class="btn btn-sm"
+          :class="loadedId === g.id ? 'loaded' : 'btn-primary'"
+          @click="emit('load', g)"
+        >
+          {{ loadedId === g.id ? 'Loaded' : 'Load' }}
         </button>
-        <button class="btn small" @click="emit('edit', g)">✏️</button>
-        <button class="btn small btn-danger" @click="emit('remove', g)">🗑️</button>
+        <button class="btn btn-sm" @click="emit('edit', g)">Edit</button>
+        <button class="btn btn-sm btn-danger" @click="emit('remove', g)">Delete</button>
       </div>
     </li>
   </ul>
@@ -63,8 +65,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
         <figcaption>
           <strong>{{ preview.name }}</strong>
           <p v-if="preview.description">{{ preview.description }}</p>
-          <span class="muted coords">
-            📍 {{ preview.answer.lat.toFixed(4) }}, {{ preview.answer.lng.toFixed(4) }}
+          <span class="coords">
+            {{ preview.answer.lat.toFixed(4) }}, {{ preview.answer.lng.toFixed(4) }}
           </span>
         </figcaption>
       </figure>
@@ -73,23 +75,31 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 </template>
 
 <style scoped>
+/* Rows separated by thin rules, no filled boxes — reads on paper or in a card. */
 .game-list {
   list-style: none;
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
 }
 
 li {
   display: flex;
   align-items: center;
   gap: 12px;
-  background: var(--surface-2);
-  border-radius: var(--radius-sm);
-  padding: 8px 12px;
+  padding: 10px 0;
   flex-wrap: wrap;
+}
+
+li:first-child {
+  padding-top: 0;
+}
+
+li:last-child {
+  padding-bottom: 0;
+}
+
+li + li {
+  border-top: 1px solid var(--border);
 }
 
 .thumb-btn {
@@ -103,33 +113,46 @@ li {
   line-height: 0;
 }
 
+.thumb-btn:focus-visible {
+  outline: 2px solid var(--water);
+  outline-offset: 2px;
+}
+
 .thumb {
   width: 64px;
   height: 48px;
   object-fit: cover;
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  background: #05080f;
+  background: var(--photo-bg);
 }
 
-/* Street View rounds have no thumbnail to fetch — mark the tile instead. */
+/* Street View rounds have no thumbnail to fetch — a light placeholder tile marks them. */
 .thumb-pano {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   font-size: 1.4rem;
   line-height: 1;
+  background: var(--water-soft);
 }
 
 .zoom {
   position: absolute;
-  right: 2px;
-  bottom: 2px;
-  font-size: 0.7rem;
+  right: 3px;
+  bottom: 3px;
+  padding: 2px 3px;
+  font-size: 0.65rem;
+  line-height: 1;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
   opacity: 0;
   transition: opacity 0.15s ease;
 }
 
-.thumb-btn:hover .zoom {
+.thumb-btn:hover .zoom,
+.thumb-btn:focus-visible .zoom {
   opacity: 1;
 }
 
@@ -142,6 +165,7 @@ li {
 }
 
 .info strong {
+  font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -150,6 +174,7 @@ li {
 
 .coords {
   font-size: 0.8rem;
+  color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
 
@@ -159,19 +184,19 @@ li {
   flex-shrink: 0;
 }
 
-.btn.small {
-  min-height: 38px;
-  padding: 4px 10px;
-  font-size: 0.85rem;
+.btn.loaded {
+  color: var(--ok);
+  border-color: var(--ok);
 }
 
 /* ── lightbox ─────────────────────────────────────────────────── */
 
+/* Photos stay dark-framed, so the lightbox dims to the photo frame colour. */
 .lightbox {
   position: fixed;
   inset: 0;
   z-index: 3000;
-  background: rgba(3, 5, 10, 0.88);
+  background: rgba(13, 21, 32, 0.9);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -192,6 +217,7 @@ li {
   max-height: 70vh;
   object-fit: contain;
   border-radius: var(--radius);
+  background: var(--photo-bg);
   box-shadow: var(--shadow);
 }
 
@@ -205,8 +231,8 @@ li {
 
 .lightbox figcaption {
   background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
   padding: 12px 16px;
   display: flex;
   flex-direction: column;
@@ -215,7 +241,10 @@ li {
 }
 
 .lightbox figcaption strong {
-  font-size: 1.1rem;
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 600;
+  line-height: 1.15;
 }
 
 .lightbox figcaption p {
@@ -231,12 +260,21 @@ li {
   right: 16px;
   min-width: 44px;
   min-height: 44px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   border-radius: 50%;
   background: var(--surface);
   color: var(--text);
   font-size: 1.1rem;
   font-weight: 700;
   cursor: pointer;
+}
+
+.close:hover {
+  background: var(--surface-2);
+}
+
+.close:focus-visible {
+  outline: 2px solid var(--water);
+  outline-offset: 2px;
 }
 </style>

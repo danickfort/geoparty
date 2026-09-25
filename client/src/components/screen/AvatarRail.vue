@@ -23,11 +23,12 @@ defineProps<{
 </template>
 
 <style scoped>
+/* Clears the paper status strip along the bottom of the guess screen. */
 .rail {
   position: absolute;
   top: 0;
-  bottom: 70px;
-  width: 90px;
+  bottom: clamp(90px, 8vw, 150px);
+  width: clamp(80px, 7vw, 120px);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -37,11 +38,11 @@ defineProps<{
 }
 
 .rail.left {
-  left: 6px;
+  left: clamp(6px, 1vw, 20px);
 }
 
 .rail.right {
-  right: 6px;
+  right: clamp(6px, 1vw, 20px);
 }
 
 .rail-avatar {
@@ -52,13 +53,14 @@ defineProps<{
   animation-delay: 0s, var(--bob-delay, 0s);
 }
 
+/* Locked in: a solid green ring and a plain drop shadow to lift it off the photo. */
 .rail-avatar img {
   width: clamp(48px, 6vh, 72px);
   height: clamp(48px, 6vh, 72px);
   border-radius: 50%;
-  border: 3px solid var(--ok);
+  border: clamp(3px, 0.4vw, 6px) solid var(--ok);
   background: #fff;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
   display: block;
 }
 

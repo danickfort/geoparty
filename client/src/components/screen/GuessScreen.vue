@@ -59,8 +59,8 @@ const callouts = computed(() =>
       </div>
     </div>
     <div class="status">
-      <h2>Where is this? 🤔</h2>
-      <p v-if="game.timeUp">⏰ Time's up! The reveal is coming…</p>
+      <h2>Where is this?</h2>
+      <p v-if="game.timeUp" class="time-up">Time's up! The reveal is coming…</p>
       <p v-else-if="game.teamMode">
         <strong>{{ game.lockedPlayers.length }}</strong> / {{ game.teams.length }} teams locked in
       </p>
@@ -78,7 +78,7 @@ const callouts = computed(() =>
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #05080f;
+  background: var(--photo-bg);
 }
 
 .photo {
@@ -96,7 +96,7 @@ const callouts = computed(() =>
 /* Timer on top, duel chips below it — one column so they never overlap. */
 .top-center {
   position: absolute;
-  top: 14px;
+  top: clamp(12px, 2vw, 32px);
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -110,39 +110,48 @@ const callouts = computed(() =>
 
 .rosters {
   position: absolute;
-  top: 14px;
-  left: 14px;
+  top: clamp(12px, 2vw, 32px);
+  left: clamp(12px, 2vw, 32px);
   display: flex;
   flex-direction: column;
   gap: 8px;
   z-index: 1;
 }
 
+/* Paper pills with the team colour as their edge (set inline). */
 .roster {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 10px;
+  padding: 4px 12px 4px 6px;
   border-radius: 999px;
-  background: rgba(21, 31, 56, 0.9);
-  border: 2px solid var(--border);
-  font-size: clamp(0.8rem, 1.4vw, 1rem);
+  background: var(--surface);
+  border: 3px solid var(--text);
+  color: var(--text);
+  font-size: clamp(0.8rem, 1.4vw, 1.1rem);
+  font-weight: 600;
 }
 
+.roster strong {
+  font-weight: 700;
+  padding: 0 4px;
+}
+
+/* Captain locked in: a hard green ring outside the team edge, no glow. */
 .roster.locked {
-  box-shadow: 0 0 16px rgba(52, 211, 153, 0.45);
+  box-shadow: 0 0 0 3px var(--ok);
 }
 
 .roster img {
   width: 2em;
   height: 2em;
   border-radius: 50%;
-  border: 2px solid var(--border);
+  border: 2px solid var(--border-strong);
   background: #fff;
 }
 
 .roster img.captain {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--text);
   outline-offset: 1px;
 }
 
@@ -150,27 +159,43 @@ const callouts = computed(() =>
   opacity: 0.4;
 }
 
+/* A strip of paper with a hard ink top edge, like a map legend. */
 .status {
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
-  text-align: center;
-  padding: 14px 16px 18px;
-  background: linear-gradient(transparent, rgba(5, 8, 15, 0.9));
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 24px;
+  padding: clamp(10px, 1.4vw, 24px) clamp(16px, 2.6vw, 48px) clamp(12px, 1.7vw, 28px);
+  background: var(--bg);
+  border-top: clamp(3px, 0.35vw, 6px) solid var(--text);
+  color: var(--text);
 }
 
 .status h2 {
-  font-size: clamp(1.3rem, 3vw, 2.2rem);
+  font-size: clamp(1.5rem, 3.6vw, 3.2rem);
 }
 
 .status p {
-  margin: 6px 0 0;
+  margin: 0;
   color: var(--muted);
-  font-size: clamp(1rem, 2vw, 1.4rem);
+  font-weight: 600;
+  font-size: clamp(1rem, 2.2vw, 1.8rem);
+}
+
+.status p.time-up {
+  color: var(--hot);
 }
 
 .status strong {
-  color: var(--accent);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  font-size: 1.25em;
+  color: var(--text);
 }
 </style>

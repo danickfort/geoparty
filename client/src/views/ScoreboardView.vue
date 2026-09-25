@@ -45,7 +45,9 @@ const game = useGameStore()
 }
 
 .empty p {
-  color: var(--muted, #94a3b8);
+  margin: 0;
+  color: var(--muted);
+  font-weight: 500;
   font-size: clamp(1rem, 2.4vw, 1.3rem);
   max-width: 32ch;
 }

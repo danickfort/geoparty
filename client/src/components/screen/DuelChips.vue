@@ -46,15 +46,17 @@ const outcome = (d: DuelChip) =>
   gap: 10px;
 }
 
+/* Paper pills with a hard ink edge — they sit over photos as well as paper. */
 .chip {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 12px;
+  padding: 5px 6px;
   border-radius: 999px;
   background: var(--surface);
-  border: 2px solid var(--border);
-  font-size: clamp(0.85rem, 1.6vw, 1.15rem);
+  border: 2px solid var(--text);
+  color: var(--text);
+  font-size: clamp(0.85rem, 1.6vw, 1.25rem);
   white-space: nowrap;
 }
 
@@ -62,7 +64,7 @@ const outcome = (d: DuelChip) =>
   width: 2em;
   height: 2em;
   border-radius: 50%;
-  border: 2px solid var(--accent);
+  border: 2px solid var(--border-strong);
   background: #fff;
 }
 
@@ -72,16 +74,24 @@ const outcome = (d: DuelChip) =>
   gap: 6px;
 }
 
+.names strong {
+  font-weight: 600;
+}
+
 .swords {
   font-size: 1.1em;
 }
 
 .tag {
-  font-weight: 900;
-  font-size: 0.85em;
-  padding: 1px 8px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.95em;
+  line-height: 1.4;
+  padding: 0 9px;
   border-radius: 999px;
-  background: var(--surface-2);
+  background: var(--land);
+  color: var(--text);
 }
 
 .chip.won {
@@ -90,7 +100,7 @@ const outcome = (d: DuelChip) =>
 
 .chip.won .tag {
   background: var(--ok);
-  color: #04120c;
+  color: #fff;
 }
 
 .chip.lost {
@@ -105,6 +115,7 @@ const outcome = (d: DuelChip) =>
 
 .chip.void {
   border-style: dashed;
+  border-color: var(--border-strong);
   opacity: 0.6;
 }
 </style>

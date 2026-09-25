@@ -69,7 +69,7 @@ const src = computed(() => streetViewEmbedUrl(props.spec))
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: #05080f;
+  background: var(--photo-bg);
 }
 
 iframe {

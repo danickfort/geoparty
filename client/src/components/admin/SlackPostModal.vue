@@ -38,12 +38,12 @@ async function post() {
 </script>
 
 <template>
-  <AdminModal title="📣 Post results to Slack" @close="emit('close')">
+  <AdminModal title="Post results to Slack" @close="emit('close')">
     <p v-if="!admin.slackConfigured" class="muted note">
       Slack isn't configured on the server — you can still review the results below.
     </p>
 
-    <p v-if="games.length === 0" class="muted">Nothing new to post.</p>
+    <p v-if="games.length === 0" class="muted note">Nothing new to post.</p>
 
     <template v-else>
       <ol class="games">
@@ -51,20 +51,24 @@ async function post() {
           <div class="game-head">{{ game.answerPlace || game.description || 'Mystery location' }}</div>
           <div v-if="game.winnerName" class="winner">
             🏆 {{ game.winnerName }} —
-            {{ game.winnerDistanceKm != null ? formatKm(game.winnerDistanceKm) : '—' }}
+            <span class="num">{{
+              game.winnerDistanceKm != null ? formatKm(game.winnerDistanceKm) : '—'
+            }}</span>
           </div>
           <ul class="results">
             <li v-for="r in game.results" :key="r.avatar" :class="{ won: r.avatar === game.winnerAvatar }">
-              <span class="name">{{ r.name }}</span>
-              <span class="dist">{{ formatKm(r.distanceKm) }}</span>
-              <span v-if="r.place" class="place">{{ r.place }}</span>
+              <span class="who">
+                <span class="name">{{ r.name }}</span>
+                <span v-if="r.place" class="place">{{ r.place }}</span>
+              </span>
+              <span class="dist num">{{ formatKm(r.distanceKm) }}</span>
             </li>
           </ul>
         </li>
       </ol>
 
       <div class="preview">
-        <div class="preview-label muted">Message preview</div>
+        <div class="preview-label">Message preview</div>
         <pre>{{ preview }}</pre>
       </div>
     </template>
@@ -85,35 +89,44 @@ async function post() {
 </template>
 
 <style scoped>
-.note {
+.note,
+.error-text {
   margin: 0;
+  font-size: 0.9rem;
 }
 
+/* One row per game, separated by thin rules rather than filled boxes. */
 .games {
   list-style: none;
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
 }
 
 .game {
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 10px 12px;
+  padding: 12px 0;
+}
+
+.game:first-child {
+  padding-top: 0;
+}
+
+.game + .game {
+  border-top: 1px solid var(--border);
 }
 
 .game-head {
-  font-weight: 800;
-  margin-bottom: 6px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin-bottom: 4px;
 }
 
 .winner {
-  color: var(--accent);
-  font-weight: 700;
+  font-weight: 600;
   margin-bottom: 6px;
+}
+
+.winner .num {
+  font-size: 1.1rem;
 }
 
 .results {
@@ -122,44 +135,52 @@ async function post() {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .results li {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: 12px;
   font-size: 0.9rem;
 }
 
-.results li.won .name {
-  font-weight: 800;
-}
-
-.results .name {
+.results .who {
   flex: 1;
+  min-width: 0;
 }
 
-.results .dist {
-  font-variant-numeric: tabular-nums;
+.results li.won .name {
   font-weight: 700;
 }
 
 .results .place {
+  margin-left: 6px;
   color: var(--muted);
   font-size: 0.82rem;
+}
+
+.results .dist {
+  min-width: 5ch;
+  text-align: right;
+  font-size: 1.05rem;
+}
+
+.results li.won .dist {
+  color: var(--hot);
 }
 
 .preview {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
 }
 
 .preview-label {
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  font-size: 0.8125rem;
+  font-weight: 600;
 }
 
 .preview pre {
@@ -172,5 +193,6 @@ async function post() {
   word-break: break-word;
   font-size: 0.82rem;
   line-height: 1.5;
+  color: var(--text);
 }
 </style>

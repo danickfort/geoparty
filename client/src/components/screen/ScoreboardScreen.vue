@@ -69,7 +69,7 @@ watch(
 
 <template>
   <div class="scoreboard" :class="{ 'with-legend': celebrate }">
-    <h1>🏆 Scoreboard</h1>
+    <h1 class="board-head">Scoreboard</h1>
     <TransitionGroup tag="div" name="rank" class="rows">
       <div
         v-for="(p, i) in rows"
@@ -115,18 +115,21 @@ watch(
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4vh;
+  gap: 1vh;
   padding: 4vh 4vw;
 }
 
-h1 {
+/* Title over a thick ink rule, like the head of a map legend. */
+.board-head {
+  width: min(640px, 92vw);
   font-size: clamp(2rem, 5.5vw, 4rem);
+  padding-bottom: 0.15em;
+  border-bottom: clamp(3px, 0.35vw, 6px) solid var(--text);
 }
 
 .rows {
   display: flex;
   flex-direction: column;
-  gap: 12px;
   width: min(640px, 92vw);
   max-height: 70vh;
   overflow-y: auto;
@@ -140,22 +143,29 @@ h1 {
 .legend {
   justify-content: center;
   max-width: min(1100px, 92vw);
+  margin-top: 3vh;
   font-size: clamp(0.85rem, 1.4vw, 1.1rem);
 }
 
+/* Rows are separated by thin rules, no cards. */
 .row {
   display: flex;
   align-items: center;
   gap: 16px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 12px 20px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
 }
 
-.row.leader {
-  border-color: var(--accent);
-  box-shadow: 0 0 24px rgba(251, 191, 36, 0.25);
+/* The leader's rank and score in the one red, avatar in a paper + red ring. */
+.row.leader .rank,
+.row.leader .score {
+  color: var(--hot);
+}
+
+.row.leader img {
+  box-shadow:
+    0 0 0 3px var(--bg),
+    0 0 0 6px var(--hot);
 }
 
 /* Players not currently in the room still count — just shown dimmed. */
@@ -163,25 +173,29 @@ h1 {
   opacity: 0.55;
 }
 
-/* The player who just won this game — pulse to draw the eye. */
+/* The player who just won this game: a paper band with a red edge, and a
+   pulse to draw the eye. */
 .row.winner {
   opacity: 1;
-  border-color: var(--accent);
-  box-shadow: 0 0 32px rgba(251, 191, 36, 0.5);
+  background: var(--surface);
+  box-shadow: inset 5px 0 0 var(--hot);
   animation: winner-pulse 1s ease-in-out 3;
 }
 
 .rank {
   width: 2.4em;
-  font-size: 1.5rem;
-  font-weight: 800;
+  font-family: var(--font-display);
+  font-size: clamp(1.4rem, 2.6vw, 2rem);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
 }
 
 .row img {
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  border: 3px solid var(--accent);
+  border: 2px solid var(--border-strong);
   background: #fff;
 }
 
@@ -193,7 +207,7 @@ h1 {
   flex-wrap: wrap;
   gap: 6px 10px;
   font-size: clamp(1.1rem, 2.6vw, 1.7rem);
-  font-weight: 800;
+  font-weight: 600;
 }
 
 @media (max-width: 700px) {
@@ -206,34 +220,38 @@ h1 {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: clamp(1.4rem, 3vw, 2.1rem);
-  font-weight: 900;
-  color: var(--accent);
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 3.6vw, 2.8rem);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  color: var(--text);
 }
 
+/* The winner's point: filled red. */
 .gain {
-  font-size: 0.65em;
-  font-weight: 900;
-  color: var(--accent-contrast);
-  background: var(--accent);
+  font-size: 0.6em;
+  font-weight: 700;
+  line-height: 1.35;
+  color: #fff;
+  background: var(--hot);
+  border: 2px solid var(--hot);
   border-radius: 999px;
-  padding: 2px 10px;
+  padding: 0 10px;
 }
 
-/* Half-points are real but secondary — outlined so the winner's +1 still pops. */
+/* Half-points are real but secondary — outlined in ink so the winner's +1 still pops. */
 .gain.half {
-  color: var(--accent);
+  color: var(--text);
   background: transparent;
-  border: 2px solid var(--accent);
-  padding: 0 8px;
+  border-color: var(--text);
 }
 
 /* A lost duel that wiped out (or exceeded) the round's gains. */
 .gain.loss {
   color: var(--hot);
   background: transparent;
-  border: 2px solid var(--hot);
-  padding: 0 8px;
+  border-color: var(--hot);
 }
 
 /* TransitionGroup: rows slide to their new rank. */

@@ -10,10 +10,12 @@ const collections = computed(() => admin.state?.collections ?? [])
 
 <template>
   <label class="target">
-    <span class="muted">Save to</span>
+    <span class="label">Save to</span>
     <select v-model="model">
-      <option value="prepared">📌 Prepared games</option>
-      <option v-for="c in collections" :key="c.id" :value="c.id">🗂️ {{ c.name }}</option>
+      <option value="prepared">Prepared games</option>
+      <optgroup v-if="collections.length" label="Collections">
+        <option v-for="c in collections" :key="c.id" :value="c.id">{{ c.name }}</option>
+      </optgroup>
     </select>
   </label>
 </template>
@@ -23,20 +25,18 @@ const collections = computed(() => admin.state?.collections ?? [])
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.85rem;
+  min-width: 0;
+}
+
+.label {
+  flex-shrink: 0;
+  font-size: 0.8125rem;
   font-weight: 600;
+  color: var(--muted);
 }
 
 select {
   flex: 1;
-  min-height: 42px;
-  padding: 8px 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--bg);
-  color: var(--text);
-  font-size: 0.95rem;
-  font-family: inherit;
-  font-weight: 600;
+  min-width: 0;
 }
 </style>

@@ -29,8 +29,11 @@ async function saveEdit(game: PreparedGame) {
 
 <template>
   <section class="card prepared">
-    <h3>📌 Prepared games ({{ games.length }})</h3>
-    <p v-if="!games.length" class="muted">
+    <header class="section-head">
+      <h3>Prepared games</h3>
+      <span class="status-pill">{{ games.length }} saved</span>
+    </header>
+    <p v-if="!games.length" class="muted empty">
       Nothing here yet — save a round setup or an image-search result for later.
     </p>
 
@@ -51,6 +54,10 @@ async function saveEdit(game: PreparedGame) {
 .prepared {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+}
+
+.empty {
+  margin: 0;
+  font-size: 0.9rem;
 }
 </style>

@@ -1,18 +1,33 @@
+/* Atlas: survey-map paper, navy ink, one red for the current stop, the pin
+   and anything urgent; green for locked-in and ready. Leaflet vectors can't
+   read these variables — their colours live in palette.ts (kept in sync). */
 :root {
-  --bg: #0b1220;
-  --surface: #151f38;
-  --surface-2: #1d2a4a;
-  --border: #2a3a63;
-  --text: #eef2ff;
-  --muted: #8fa1c7;
-  --accent: #fbbf24;
-  --accent-contrast: #201500;
-  --hot: #fb7185;
-  --ok: #34d399;
-  --danger: #f87171;
-  --radius: 16px;
-  --radius-sm: 10px;
-  --shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+  --bg: #e6ecf1;
+  --surface: #f7f9fb;
+  --surface-2: #eef2f6;
+  --border: rgba(24, 35, 55, 0.16);
+  --border-strong: rgba(24, 35, 55, 0.4);
+  --text: #182337;
+  --muted: #4b596f;
+  --accent: #182337;
+  --accent-contrast: #ffffff;
+  --ink-hover: #25334d;
+  --hot: #d33f49;
+  --hot-soft: rgba(211, 63, 73, 0.18);
+  --ok: #2f8f5b;
+  --danger: #d33f49;
+  --water: #2b6b9b;
+  --water-soft: #d6e5ef;
+  --land: #dbe3d0;
+  /* Photos stay dark-framed so they pop off the paper. */
+  --photo-bg: #0d1520;
+  --radius: 10px;
+  --radius-sm: 6px;
+  --shadow: 0 10px 30px rgba(24, 35, 55, 0.16);
+  --font-body: 'Barlow', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Barlow Condensed', 'Barlow', system-ui, sans-serif;
+  --contours: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='130' viewBox='0 0 260 130'%3E%3Cg fill='none' stroke='%23182337' stroke-opacity='.07'%3E%3Cpath d='M0 30c45-22 85 22 130 0s85-22 130 0'/%3E%3Cpath d='M0 65c45-22 85 22 130 0s85-22 130 0'/%3E%3Cpath d='M0 100c45-22 85 22 130 0s85-22 130 0'/%3E%3C/g%3E%3C/svg%3E");
+  color-scheme: light;
 }
 
 * {
@@ -27,14 +42,10 @@ body,
 
 body {
   margin: 0;
-  background: var(--bg);
+  background: var(--bg) var(--contours);
   color: var(--text);
-  font-family:
-    system-ui,
-    -apple-system,
-    'Segoe UI',
-    Roboto,
-    sans-serif;
+  font-family: var(--font-body);
+  line-height: 1.45;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
 }
@@ -43,8 +54,16 @@ h1,
 h2,
 h3 {
   margin: 0;
-  font-weight: 800;
-  letter-spacing: -0.02em;
+  font-family: var(--font-display);
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+/* Condensed display face for every number that can change. */
+.num {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 /* ── shared bits ─────────────────────────────────────────────── */
@@ -62,21 +81,24 @@ h3 {
   justify-content: center;
   gap: 8px;
   min-height: 48px;
-  padding: 12px 22px;
-  border: 1px solid var(--border);
+  padding: 10px 20px;
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
-  background: var(--surface-2);
+  background: var(--surface);
   color: var(--text);
+  font-family: inherit;
   font-size: 1rem;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
   transition:
     transform 0.08s ease,
-    filter 0.15s ease;
+    background-color 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .btn:hover:not(:disabled) {
-  filter: brightness(1.15);
+  background: var(--surface-2);
+  border-color: var(--text);
 }
 
 .btn:active:not(:disabled) {
@@ -88,10 +110,35 @@ h3 {
   cursor: not-allowed;
 }
 
+.btn:focus-visible {
+  outline: 2px solid var(--water);
+  outline-offset: 2px;
+}
+
 .btn-primary {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--accent-contrast);
+}
+
+.btn-primary:hover:not(:disabled),
+.btn-go:hover:not(:disabled) {
+  background: var(--ink-hover);
+  border-color: var(--ink-hover);
+}
+
+/* The one big action on a screen: full width, condensed, ink. */
+.btn-go {
+  width: 100%;
+  min-height: 52px;
+  padding: 10px 14px;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1.1;
 }
 
 .btn-danger {
@@ -100,17 +147,24 @@ h3 {
   color: var(--danger);
 }
 
+.btn-danger:hover:not(:disabled) {
+  background: var(--hot-soft);
+  border-color: var(--danger);
+}
+
 input[type='text'],
 input[type='password'],
 input[type='url'],
 input[type='number'],
+input[type='search'],
+select,
 textarea {
   width: 100%;
-  min-height: 48px;
-  padding: 12px 14px;
-  border: 1px solid var(--border);
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
-  background: var(--bg);
+  background: #fff;
   color: var(--text);
   font-size: 1rem;
   font-family: inherit;
@@ -121,10 +175,20 @@ textarea {
 }
 
 input:focus,
+select:focus,
 textarea:focus {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--water);
   outline-offset: 1px;
   border-color: transparent;
+}
+
+input[type='checkbox'],
+input[type='radio'] {
+  accent-color: var(--text);
+}
+
+a {
+  color: var(--water);
 }
 
 .muted {
@@ -142,6 +206,53 @@ img[src*='/avatars/'] {
   font-weight: 600;
 }
 
+.btn-sm {
+  min-height: 34px;
+  padding: 4px 12px;
+  font-size: 0.875rem;
+}
+
+/* Section header: condensed title, optional pills/buttons on the right, a rule under it. */
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-bottom: 10px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.section-head h3 {
+  font-size: 1.6rem;
+  font-weight: 600;
+}
+
+/* Round status pills (Round ready, 3 of 5 locked, …). */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.5;
+  padding: 1px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.status-pill.ready {
+  color: var(--ok);
+  border-color: var(--ok);
+}
+
+.status-pill.warn {
+  color: var(--hot);
+  border-color: var(--hot);
+}
+
 /* ── avatar map pins (divIcon HTML lives outside scoped styles) ── */
 
 .avatar-pin-wrap,
@@ -154,10 +265,10 @@ img[src*='/avatars/'] {
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  border: 3px solid var(--pin-color, var(--accent));
+  border: 3px solid var(--pin-color, var(--text));
   background: #fff;
   overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 3px 8px rgba(24, 35, 55, 0.35);
 }
 
 /* A teammate's suggestion: same face, clearly not the pin that counts. */
@@ -183,7 +294,7 @@ img[src*='/avatars/'] {
   margin: -2px auto 0;
   border-left: 7px solid transparent;
   border-right: 7px solid transparent;
-  border-top: 12px solid var(--pin-color, var(--accent));
+  border-top: 12px solid var(--pin-color, var(--text));
 }
 
 .winner-pin .avatar-pin {
@@ -197,7 +308,7 @@ img[src*='/avatars/'] {
 .flag-pin {
   font-size: 44px;
   line-height: 1;
-  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5));
+  filter: drop-shadow(0 2px 3px rgba(24, 35, 55, 0.35));
 }
 
 .pin-drop {
@@ -257,8 +368,30 @@ img[src*='/avatars/'] {
   }
 }
 
-/* Leaflet dark-chrome tweaks */
+/* Leaflet chrome on paper */
 .leaflet-container {
-  background: #0e1626;
+  background: var(--water-soft);
   font: inherit;
+}
+
+.leaflet-control-layers,
+.leaflet-bar {
+  border: 1px solid var(--border-strong) !important;
+  border-radius: var(--radius-sm) !important;
+  box-shadow: none !important;
+}
+
+.leaflet-control-layers {
+  background: var(--surface);
+  color: var(--text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
