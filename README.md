@@ -10,8 +10,8 @@ up across games.
 | Route | Who | What |
 |---|---|---|
 | `/screen` | The big screen / projector | Lobby QR code → the mystery photo → the dramatic pin-by-pin reveal → winner → scoreboard |
-| `/` | Players (phones) | Pick avatar → drop a pin on the map → lock in |
-| `/admin` | The host | Set the round image + true location, control the game flow, watch guesses live |
+| `/` | Players (phones) | Pick avatar → (check the scoreboard while waiting) → drop a pin on the map → lock in |
+| `/admin` | The host | Set the round image + true location, control the game flow, watch guesses live (locked pins and unlocked drafts) |
 
 ## Game flow
 
@@ -47,7 +47,7 @@ change hands — that's the point.
 
 A tie for Bridesmaid or Climber leaves that badge unawarded. The end-of-round tally on the big screen lists every
 title that changed hands, and each phone says which titles its player won or lost.
-The admin **Players** tab and the big-screen scoreboard show this legend too.
+The admin **Players** tool and the big-screen scoreboard show this legend too.
 
 ## Development
 
@@ -127,7 +127,7 @@ Paste any of these and the panorama is recognised automatically:
 A plain Google Maps link that *isn't* in Street View is rejected with a hint —
 open it, drop into Street View, then copy the URL again.
 
-Don't have a link yet? The admin **Find** tab has a **Street View finder**: search a
+Don't have a link yet? The admin **Find a place** tool has a **Street View finder**: search a
 place or click the map, and the pin snaps to the nearest panorama and opens it in
 Google's embed so you can look around. *Use for round* hands the link to Round
 setup (pano id included, so the big screen uses the clean tile viewer below), or
@@ -173,5 +173,5 @@ changes).
 - Joining mid-round makes you a spectator until the next game.
 - Street View rounds are never sent to Slack as an image (a map link isn't a
   photo Slack can render) — the link still appears in the message text.
-- The admin **Players** tab lists everyone who has ever scored, not just the
+- The admin **Players** tool lists everyone who has ever scored, not just the
   people currently in the room, and its scores are editable inline.

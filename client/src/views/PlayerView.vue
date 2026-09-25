@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { setRegisterRole } from '@/services/socket'
 import { useGameStore } from '@/stores/game'
 import { usePlayerStore } from '@/stores/player'
@@ -7,12 +7,22 @@ import JoinForm from '@/components/player/JoinForm.vue'
 import WaitingCard from '@/components/player/WaitingCard.vue'
 import GuessMap from '@/components/player/GuessMap.vue'
 import RoundResult from '@/components/player/RoundResult.vue'
+import PlayerScoreboard from '@/components/player/PlayerScoreboard.vue'
 
 const game = useGameStore()
 const player = usePlayerStore()
 
 onMounted(() => setRegisterRole(() => player.rejoin()))
 onBeforeUnmount(() => setRegisterRole(null))
+
+// Lobby-only peek at the standings; closes itself once the game moves on.
+const showScoreboard = ref(false)
+watch(
+  () => player.joined && game.phase === 'lobby',
+  (inLobby) => {
+    if (!inLobby) showScoreboard.value = false
+  },
+)
 </script>
 
 <template>
@@ -20,7 +30,10 @@ onBeforeUnmount(() => setRegisterRole(null))
     <JoinForm v-if="!player.joined" />
 
     <template v-else-if="game.phase === 'lobby'">
-      <WaitingCard emoji="🎉" title="You're in!" subtitle="Waiting for the host to start the game…" />
+      <PlayerScoreboard v-if="showScoreboard" @close="showScoreboard = false" />
+      <WaitingCard v-else emoji="🎉" title="You're in!" subtitle="Waiting for the host to start the game…">
+        <button class="btn" @click="showScoreboard = true">See the scoreboard</button>
+      </WaitingCard>
     </template>
 
     <template v-else-if="game.phase === 'guessing'">
