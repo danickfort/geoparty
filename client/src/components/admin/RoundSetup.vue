@@ -209,92 +209,107 @@ async function saveForLater() {
 
 <template>
   <section class="card setup">
-    <h3>🖼️ Round setup</h3>
+    <header class="section-head">
+      <h3>Round setup</h3>
+      <span v-if="saved" class="status-pill ready">Round ready</span>
+      <span v-else-if="canSave" class="status-pill warn">Not saved yet</span>
+      <span v-else class="status-pill">Needs an image and a location</span>
+    </header>
 
-    <label class="field">
-      <span>Image URL <em class="muted">(or a Google Street View link)</em></span>
-      <input
-        v-model.trim="imageUrl"
-        type="url"
-        placeholder="https://… a photo, a Street View link, or upload below"
-      />
-    </label>
-
-    <p v-if="expanding" class="muted hint-text">⏳ Expanding the short link…</p>
-    <p v-if="expandError" class="error-text">{{ expandError }}</p>
-    <p v-else-if="mapsLinkNotPano" class="error-text">
-      That's a Google Maps link, not a Street View one. Open it, drop into Street View, then copy
-      the URL from the address bar.
-    </p>
-
-    <label class="upload btn">
-      {{ uploading ? 'Uploading…' : '⬆️ Upload an image' }}
-      <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden @change="onFileChange" />
-    </label>
-    <p v-if="uploadError" class="error-text">{{ uploadError }}</p>
+    <div class="field">
+      <label for="round-image">
+        Image <small>a photo URL, a Street View link, or an upload</small>
+      </label>
+      <div class="inline">
+        <input
+          id="round-image"
+          v-model.trim="imageUrl"
+          type="url"
+          placeholder="https://… a photo or a Street View link"
+        />
+        <label class="upload btn">
+          {{ uploading ? 'Uploading…' : 'Upload' }}
+          <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden @change="onFileChange" />
+        </label>
+      </div>
+      <p v-if="expanding" class="hint-text">Expanding the short link…</p>
+      <p v-if="expandError" class="error-text">{{ expandError }}</p>
+      <p v-else-if="mapsLinkNotPano" class="error-text">
+        That's a Google Maps link, not a Street View one. Open it, drop into Street View, then copy
+        the URL from the address bar.
+      </p>
+      <p v-if="uploadError" class="error-text">{{ uploadError }}</p>
+    </div>
 
     <div v-if="streetView" class="preview pano">
       <StreetViewFrame :spec="streetView" />
     </div>
     <img v-else-if="photoUrl" class="preview" :src="photoUrl" alt="Round image preview" />
 
-    <p v-if="streetView" class="muted hint-text">
-      🛣️ Street View, facing {{ Math.round(streetView.heading) }}° — that's where the big screen
+    <p v-if="streetView" class="hint-text">
+      Street View, facing {{ Math.round(streetView.heading) }}°. That's where the big screen
       starts. Drag to look around here or on the screen; the saved heading only changes if you
       re-copy the URL from Google Maps.
     </p>
 
-    <label class="field">
-      <span>True location</span>
+    <div class="field">
+      <span class="label">True location</span>
       <AnswerPickerMap v-model="answer" :radius-km="radiusKm" />
-    </label>
+    </div>
 
-    <label class="field">
-      <span>Half-point radius <em class="muted">(km — locked guesses inside earn ½ point)</em></span>
-      <input
-        v-model.number="halfPointRadiusKm"
-        type="number"
-        min="1"
-        step="1"
-        placeholder="e.g. 250 — leave empty to disable"
-      />
-    </label>
-
-    <label class="field">
-      <span>Round timer <em class="muted">(seconds — leave empty for no time limit)</em></span>
-      <input
-        v-model.number="timerSeconds"
-        type="number"
-        min="10"
-        max="3600"
-        step="10"
-        placeholder="No time limit"
-      />
-    </label>
+    <div class="grid2">
+      <div class="field">
+        <label for="round-radius">
+          Half-point radius <small>km, locked guesses inside earn ½ point</small>
+        </label>
+        <input
+          id="round-radius"
+          v-model.number="halfPointRadiusKm"
+          type="number"
+          min="1"
+          step="1"
+          placeholder="Empty to disable"
+        />
+      </div>
+      <div class="field">
+        <label for="round-timer">Round timer <small>seconds, empty for no limit</small></label>
+        <input
+          id="round-timer"
+          v-model.number="timerSeconds"
+          type="number"
+          min="10"
+          max="3600"
+          step="10"
+          placeholder="No time limit"
+        />
+      </div>
+    </div>
 
     <label class="check">
       <input v-model="rivalCallouts" type="checkbox" />
-      <span>⚔️ Rival duels <em class="muted">(players may challenge a neighbour: +1 if closer, −0.5 if not)</em></span>
+      <span>Rival duels <small>players may challenge a neighbour: +1 if closer, −0.5 if not</small></span>
     </label>
 
-    <label class="field">
-      <span>Description <em class="muted">(revealed with the winner)</em></span>
+    <div class="field">
+      <label for="round-description">Description <small>revealed with the winner</small></label>
       <textarea
+        id="round-description"
         v-model="description"
         rows="3"
-        placeholder="e.g. The Fairy Pools on the Isle of Skye, Scotland — carved by glacial meltwater…"
+        placeholder="e.g. The Fairy Pools on the Isle of Skye, Scotland, carved by glacial meltwater…"
       ></textarea>
-    </label>
+    </div>
 
-    <button class="btn" :class="{ 'btn-primary': !saved }" :disabled="!canSave || saved" @click="save">
-      {{ saved ? '✓ Round ready' : 'Save round' }}
-    </button>
-
-    <div class="save-later">
-      <SaveTargetPicker v-model="saveTarget" />
-      <button class="btn" :disabled="!canSave" @click="saveForLater">
-        {{ savedForLater ? '✓ Saved for later' : '📚 Save for later' }}
+    <div class="buttons">
+      <button class="btn" :class="{ 'btn-primary': !saved }" :disabled="!canSave || saved" @click="save">
+        {{ saved ? 'Round saved' : 'Save round' }}
       </button>
+      <div class="save-later">
+        <SaveTargetPicker v-model="saveTarget" />
+        <button class="btn" :disabled="!canSave" @click="saveForLater">
+          {{ savedForLater ? 'Saved for later' : 'Save for later' }}
+        </button>
+      </div>
     </div>
   </section>
 </template>
@@ -303,61 +318,111 @@ async function saveForLater() {
 .setup {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
+}
+
+.setup .section-head {
+  margin-bottom: 0;
 }
 
 .field {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  font-weight: 700;
-  font-size: 0.9rem;
+  min-width: 0;
+}
+
+.field > label,
+.field > .label {
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.field small,
+.check small {
+  font-weight: 400;
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-left: 4px;
+}
+
+.inline {
+  display: flex;
+  gap: 8px;
+}
+
+.inline input {
+  flex: 1;
+  min-width: 0;
+}
+
+.upload {
+  cursor: pointer;
+  min-height: 44px;
+}
+
+.grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
 }
 
 .check {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-weight: 700;
+  font-weight: 600;
   font-size: 0.9rem;
   cursor: pointer;
 }
 
 .check input {
-  width: 20px;
-  height: 20px;
-  accent-color: var(--accent);
-}
-
-
-.upload {
-  cursor: pointer;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
 }
 
 .preview {
-  max-height: 220px;
+  width: 100%;
+  max-height: 240px;
   object-fit: contain;
   border-radius: var(--radius-sm);
-  background: #05080f;
+  border: 1px solid var(--border);
+  background: var(--photo-bg);
 }
 
 /* A panorama has no intrinsic size — give the preview box a fixed one. */
 .preview.pano {
-  height: 220px;
+  height: 240px;
   overflow: hidden;
 }
 
 .hint-text {
   margin: 0;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   line-height: 1.4;
+  color: var(--muted);
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 4px;
 }
 
 .save-later {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
+  align-items: flex-end;
   gap: 8px;
-  border-top: 1px solid var(--border);
-  padding-top: 14px;
+}
+
+@media (max-width: 560px) {
+  .grid2 {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

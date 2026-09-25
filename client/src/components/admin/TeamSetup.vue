@@ -10,7 +10,8 @@ import { useGameStore } from '@/stores/game'
 const admin = useAdminStore()
 const game = useGameStore()
 
-const open = ref(false)
+// Opened from the lobby roster's "Play in teams"; closed (renders nothing) otherwise.
+const open = defineModel<boolean>('open', { default: false })
 const teamCount = ref(MIN_TEAMS)
 /** Draft: playerId → palette index (or absent = unassigned). */
 const assignment = ref<Record<string, number>>({})
@@ -117,23 +118,22 @@ async function clear() {
 </script>
 
 <template>
-  <section class="card teams">
-    <button v-if="!open" class="toggle" @click="open = true">
-      👥 Play in teams <span class="muted">— captains drop the pin, teammates suggest</span>
-    </button>
+  <section v-if="open" class="card teams">
+    <header class="section-head">
+      <h3>Teams</h3>
+      <label class="count">
+        <span class="muted">Teams</span>
+        <button class="btn btn-sm" :disabled="teamCount <= MIN_TEAMS" aria-label="Fewer teams" @click="teamCount--">−</button>
+        <strong class="num">{{ teamCount }}</strong>
+        <button class="btn btn-sm" :disabled="teamCount >= MAX_TEAMS" aria-label="More teams" @click="teamCount++">+</button>
+      </label>
+    </header>
+    <p class="muted note">Captains drop the pin, teammates suggest.</p>
 
-    <template v-else>
-      <header>
-        <h3>👥 Teams</h3>
-        <label class="count">
-          <span class="muted">Teams</span>
-          <button class="btn small" :disabled="teamCount <= MIN_TEAMS" @click="teamCount--">−</button>
-          <strong>{{ teamCount }}</strong>
-          <button class="btn small" :disabled="teamCount >= MAX_TEAMS" @click="teamCount++">+</button>
-        </label>
-      </header>
-
-      <p v-if="players.length === 0" class="muted">Waiting for players to join…</p>
+    <div v-if="players.length === 0" class="waiting">
+      <p class="muted">Waiting for players to join…</p>
+      <button class="btn btn-sm" :disabled="saving" @click="clear">Play solo</button>
+    </div>
 
       <template v-else>
         <p class="muted note">Tap a player to move them between teams.</p>
@@ -170,27 +170,28 @@ async function clear() {
             <label v-else class="captain">
               <span class="muted">Captain</span>
               <select v-model="captains[index]">
-                <option v-for="m in membersOf(index)" :key="m.id" :value="m.id">👑 {{ m.name }}</option>
+                <option v-for="m in membersOf(index)" :key="m.id" :value="m.id">{{ m.name }}</option>
               </select>
             </label>
           </div>
         </div>
 
         <div class="actions">
-          <button class="btn small" @click="shuffle">🔀 Shuffle</button>
-          <button class="btn small" :disabled="saving" @click="clear">Clear teams</button>
+          <button class="btn btn-sm" @click="shuffle">Shuffle</button>
+          <button class="btn btn-sm" :disabled="saving" @click="clear">
+            {{ game.teams.length ? 'Clear teams' : 'Play solo' }}
+          </button>
           <button
-            class="btn btn-primary small"
+            class="btn btn-primary btn-sm"
             :disabled="!canSave || !dirty || saving"
             @click="save"
           >
-            {{ !dirty && game.teams.length ? '✓ Teams ready' : '💾 Save teams' }}
+            {{ !dirty && game.teams.length ? 'Teams saved' : 'Save teams' }}
           </button>
         </div>
         <p v-if="emptyTeams" class="muted note">Every team needs at least one player.</p>
         <p v-if="error" class="error-text">{{ error }}</p>
       </template>
-    </template>
   </section>
 </template>
 
@@ -201,22 +202,19 @@ async function clear() {
   gap: 12px;
 }
 
-.toggle {
-  background: none;
-  border: none;
-  color: var(--text);
-  font: inherit;
-  font-weight: 800;
-  text-align: left;
-  cursor: pointer;
-  padding: 0;
-}
-
-header {
+.waiting {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.waiting p {
+  margin: 0;
+}
+
+.teams .section-head {
+  margin-bottom: 0;
 }
 
 .count {
@@ -244,14 +242,19 @@ header {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 12px 4px 4px;
+  padding: 3px 12px 3px 3px;
   border-radius: 999px;
-  border: 2px solid var(--border);
-  background: var(--surface-2);
+  border: 2px solid var(--border-strong);
+  background: var(--surface);
   color: var(--text);
   font: inherit;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
+}
+
+.chip:focus-visible {
+  outline: 2px solid var(--water);
+  outline-offset: 2px;
 }
 
 .chip img {
@@ -274,6 +277,7 @@ header {
 
 .team {
   border: 2px solid var(--border);
+  background: var(--surface);
   border-radius: var(--radius-sm);
   padding: 10px 12px;
   display: flex;
@@ -293,24 +297,10 @@ header {
   font-size: 0.85rem;
 }
 
-.captain select {
-  font: inherit;
-  padding: 6px 8px;
-  border-radius: var(--radius-sm);
-  background: var(--surface-2);
-  color: var(--text);
-  border: 1px solid var(--border);
-}
-
 .actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
 
-.btn.small {
-  min-height: 34px;
-  padding: 4px 12px;
-  font-size: 0.85rem;
-}
 </style>
