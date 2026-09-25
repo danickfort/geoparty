@@ -306,6 +306,8 @@ export interface AdminState extends PublicState {
   roundTimerSeconds: number | null
   /** Locked-in guesses by player id (admin eyes only before reveal). */
   guesses: Record<string, LatLng>
+  /** Pins on the map but not locked in yet, by player id (admin eyes only). */
+  livePins: Record<string, LatLng>
   /** Rounds prepared in advance, ready to be loaded. */
   preparedGames: PreparedGame[]
   /** Themed collections of prepared games. */
