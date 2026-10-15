@@ -48,8 +48,9 @@ jobs:
       - name: Request fixed NAS deployment
         env:
           IMAGE_DIGEST: ${{ needs.build.outputs.digest }}
+          DEPLOY_TOKEN: ${{ github.token }}
         run: |
-          python3 -c 'import json,os; print(json.dumps({"digest":os.environ["IMAGE_DIGEST"],"sha":os.environ["GITHUB_SHA"]}))' > "$RUNNER_TEMP/deployment.json"
+          python3 -c 'import json,os; print(json.dumps({"digest":os.environ["IMAGE_DIGEST"],"sha":os.environ["GITHUB_SHA"],"github_token":os.environ["DEPLOY_TOKEN"]}))' |
           ssh -T -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
             -o UserKnownHostsFile=/run/deploy/known_hosts -o ServerAliveInterval=30 \
-            -i /run/deploy/key -p 2222 danick@192.168.1.60 < "$RUNNER_TEMP/deployment.json"
+            -i /run/deploy/key -p 2222 danick@192.168.1.60
