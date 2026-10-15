@@ -1,80 +1,55 @@
-name: Publish Docker image
+name: Test, publish and deploy
 
 on:
   push:
-    branches: ["main"]
+    branches: [main]
   pull_request:
-    branches: ["main"]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  docker:
+  build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      digest: ${{ steps.publish.outputs.digest }}
+    env:
+      IMAGE: danickfort/geoparty:sha-${{ github.sha }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      # Only authenticate on pushes to main — pull requests build but never push.
-      - name: Log in to Docker Hub
-        if: github.event_name == 'push'
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Extract tags and labels
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: danickfort/geoparty
-          tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=sha
-
-      - name: Build and push
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./Dockerfile
-          # Push only on push to main; PRs run the build as a validation check.
-          push: ${{ github.event_name == 'push' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  # Runs on the self-hosted runner on the NAS. Never on pull requests, and only
-  # after the image is published. No checkout — it just pulls the trusted image
-  # and recreates the container, so untrusted PR code never touches the NAS.
-  deploy:
-    needs: docker
-    if: github.event_name == 'push'
-    runs-on: [self-hosted, nas]
-    steps:
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Pull the freshly published image
-        run: docker pull danickfort/geoparty:latest
-
-      - name: Recreate the geoparty container
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Build and test
+        run: docker build --label "org.opencontainers.image.revision=$GITHUB_SHA" --label "org.opencontainers.image.source=https://github.com/krabilousse/geoparty" -t "$IMAGE" .
+      - name: Publish tested image
+        id: publish
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        env:
+          REGISTRY_USER: ${{ secrets.DOCKERHUB_USERNAME }}
+          REGISTRY_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
-          docker stop geoparty || true
-          docker rm geoparty || true
-          docker run -d \
-            --name geoparty \
-            --restart unless-stopped \
-            -p 13385:3000 \
-            -v /volume1/docker/geoparty/geoparty/data:/app/data \
-            -v /volume1/docker/geoparty/geoparty/uploads:/app/uploads \
-            -e ADMIN_PASSWORD="${{ secrets.ADMIN_PASSWORD }}" \
-            -e SLACK_WEBHOOK_URL="${{ secrets.SLACK_WEBHOOK_URL }}" \
-            danickfort/geoparty:latest
+          printf '%s' "$REGISTRY_TOKEN" | docker login docker.io --username "$REGISTRY_USER" --password-stdin
+          docker push "$IMAGE"
+          ref=$(docker image inspect "$IMAGE" --format '{{index .RepoDigests 0}}')
+          echo "digest=${ref#*@}" >> "$GITHUB_OUTPUT"
 
-      - name: Prune old images
-        run: docker image prune -f
+  deploy:
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: [self-hosted, geoparty-deploy]
+    timeout-minutes: 15
+    steps:
+      - name: Request fixed NAS deployment
+        env:
+          IMAGE_DIGEST: ${{ needs.build.outputs.digest }}
+        run: |
+          python3 -c 'import json,os; print(json.dumps({"digest":os.environ["IMAGE_DIGEST"],"sha":os.environ["GITHUB_SHA"]}))' > "$RUNNER_TEMP/deployment.json"
+          ssh -T -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile=/run/deploy/known_hosts -o ServerAliveInterval=30 \
+            -i /run/deploy/key -p 2222 danick@192.168.1.60 < "$RUNNER_TEMP/deployment.json"

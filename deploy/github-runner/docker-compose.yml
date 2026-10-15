@@ -1,28 +1,26 @@
-# Self-hosted GitHub Actions runner for the GeoParty NAS deploy job.
-# Connects OUTBOUND to GitHub (no inbound ports, no SSH exposure) and uses the
-# host Docker daemon (via the mounted socket) to run the `deploy` job.
-#
-# Copy .env.example to .env, fill in RUNNER_ACCESS_TOKEN, then:
-#   docker-compose up -d
+# Install the fixed NAS deployment command and this runner before merging the workflow.
 services:
   runner:
-    image: myoung34/github-runner:latest
+    image: myoung34/github-runner@sha256:ecfd932558edcad8a34bba439a142eba46744a4a29cbf57ecfe5f1526332604d
     container_name: github-runner-geoparty
     restart: unless-stopped
+    mem_limit: 1g
+    security_opt: ["no-new-privileges:true"]
     environment:
       REPO_URL: https://github.com/krabilousse/geoparty
-      ACCESS_TOKEN: ${RUNNER_ACCESS_TOKEN}   # GitHub PAT — see .env
       RUNNER_NAME: nas-geoparty
       RUNNER_SCOPE: repo
-      LABELS: nas                            # the workflow targets [self-hosted, nas]
+      RUNNER_TOKEN: ${RUNNER_REGISTRATION_TOKEN:-}
+      LABELS: geoparty-deploy
       RUNNER_WORKDIR: /tmp/runner/work
+      RUN_AS_ROOT: "true"
       DISABLE_AUTO_UPDATE: "true"
-    # Give the runner access to the host Docker socket so `docker` works in jobs.
-    group_add:
-      - "65538"                              # host docker socket GID on this NAS
+      DISABLE_AUTOMATIC_DEREGISTRATION: "true"
+      CONFIGURED_ACTIONS_RUNNER_FILES_DIR: /runner/config
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
       - runner-work:/tmp/runner
-
+      - runner-config:/runner/config
+      - /volume1/nas-control/runner-keys/geoparty:/run/deploy:ro
 volumes:
   runner-work:
+  runner-config:
