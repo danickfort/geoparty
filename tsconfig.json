@@ -14,10 +14,9 @@
     "noEmit": true,
     "jsx": "preserve",
     "types": ["vite/client"],
-    "baseUrl": ".",
     "paths": {
-      "@shared/*": ["shared/*"],
-      "@/*": ["client/src/*"]
+      "@shared/*": ["./shared/*"],
+      "@/*": ["./client/src/*"]
     }
   },
   "include": ["client/src/**/*", "client/src/**/*.vue", "shared/**/*"]
