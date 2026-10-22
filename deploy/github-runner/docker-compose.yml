@@ -7,7 +7,7 @@ services:
     mem_limit: 1g
     security_opt: ["no-new-privileges:true"]
     environment:
-      REPO_URL: https://github.com/krabilousse/geoparty
+      REPO_URL: https://github.com/danickfort/geoparty
       RUNNER_NAME: nas-geoparty
       RUNNER_SCOPE: repo
       RUNNER_TOKEN: ${RUNNER_REGISTRATION_TOKEN:-}

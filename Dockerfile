@@ -12,7 +12,7 @@ COPY package*.json ./
 RUN npm ci --omit=dev
 COPY --from=build /app/server/dist ./server/dist
 COPY --from=build /app/client/dist ./client/dist
-COPY avatars ./avatars
+COPY examples/avatars ./examples/avatars
 EXPOSE 3000
-VOLUME ["/app/uploads", "/app/data"]
+VOLUME ["/app/avatars", "/app/uploads", "/app/data"]
 CMD ["node", "server/dist/server/index.js"]

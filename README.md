@@ -81,12 +81,51 @@ and join. Uses `ngrok` if installed, otherwise `cloudflared`
 docker build -t geoparty .
 docker run -p 3000:3000 \
   -e ADMIN_PASSWORD=change-me \
+  -v geoparty-avatars:/app/avatars \
   -v geoparty-uploads:/app/uploads \
   -v geoparty-data:/app/data \
   geoparty
 ```
 
 Or without Docker: `npm run build && ADMIN_PASSWORD=change-me npm start`.
+
+Use stable named volumes or bind directories for all three paths. Docker image
+rebuilds do not contain your runtime files. A Dockerfile `VOLUME` declaration alone
+does not make Coolify reuse the same volume on the next deployment.
+
+### Keep existing players and scores in Coolify
+
+Before the first deployment of this version, migrate the existing instance's files.
+An empty mount hides any files already present at its container destination.
+
+1. Pause games and stop writes on the current instance. Back up the full
+   `/app/avatars`, `/app/data`, and `/app/uploads` directories from the current
+   container before recreating it or attaching new mounts. If these paths already
+   use persistent storage, back up that storage too.
+2. Inspect the backups. Confirm that avatar images, `data/scores.json`, history,
+   prepared rounds, collections, and uploaded round images are present when used.
+   Record avatar filenames and compare their score entries.
+3. Create stable named volumes or host bind directories for this application.
+   Copy each complete backup into its corresponding new storage location while
+   the application is stopped. Preserve filenames, directory structure, and bytes.
+   If a destination already contains data, reconcile it before copying rather
+   than overwriting files. Give the container user read and write access.
+4. In Coolify, open the application's **Persistent Storage** settings. Configure
+   separate mounts with destination paths `/app/avatars`, `/app/data`, and
+   `/app/uploads`. Reuse those same storage sources on every deployment. If your
+   application uses Docker Compose, declare stable external named volumes or
+   bind paths for those destinations in the Compose configuration.
+5. Confirm that the configured mounts contain the restored files before starting
+   the application. Deploy the new image, then compare the available avatars,
+   scoreboard, saved rounds, and uploads with the backups. Restart once and check
+   them again. Keep the backups until these checks pass.
+
+The startup initializer only seeds animal examples when `/app/avatars` is empty.
+It leaves every nonempty avatar directory and every existing data or upload file
+untouched. Existing custom player names and scores remain valid because avatar
+filenames identify players. Do not rename deployed avatar files without migrating
+their keys in the saved data. Removing personal examples from Git does not remove
+the files you preserve in these mounts.
 
 ### Environment variables
 
@@ -156,10 +195,16 @@ two flavours:
 
 ## Avatars
 
-Drop images into `avatars/` (png/jpg/webp/gif/svg) — the filename becomes the
-player name: `arctic-fox.png` → “Arctic Fox”. The bundled emoji SVGs are
-placeholders; replace them with your own set anytime (restart to pick up
-changes).
+Drop images into `avatars/` (png, jpg, jpeg, webp, gif, svg, or avif). The filename
+becomes the player name. For example, `arctic-fox.png` becomes "Arctic Fox".
+Restart to load changes.
+
+The repository ships Fox, Panda, and Koala SVGs under `examples/avatars/`.
+The server copies them into an empty `avatars/` directory on first startup in
+development and production. A nonempty directory receives no defaults, even if
+its files are not supported images. Customize the runtime directory to choose
+your own players. `avatars/`, `data/`, and `uploads/` are local instance data.
+They are excluded from Git and the Docker build context.
 
 ## Notes
 
