@@ -1,4 +1,5 @@
 node_modules/
+/avatars/
 client/dist/
 server/dist/
 uploads/*

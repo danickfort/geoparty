@@ -6,4 +6,5 @@ server/dist
 .env.*
 data
 uploads
+/avatars
 *.log

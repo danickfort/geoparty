@@ -1,4 +1,3 @@
-import fs from 'node:fs'
 import http from 'node:http'
 import path from 'node:path'
 import express from 'express'
@@ -9,13 +8,14 @@ import { geocodeRouter } from './geocode.js'
 import { searchRouter } from './search.js'
 import { setupSockets } from './sockets.js'
 import { streetViewRouter } from './streetview.js'
+import { initializeStorage } from './storage.js'
 import { uploadRouter } from './upload.js'
 
 const PORT = Number(process.env.PORT ?? 3000)
 const ROOT = process.cwd()
 const CLIENT_DIST = path.join(ROOT, 'client', 'dist')
 
-fs.mkdirSync(path.join(ROOT, 'uploads'), { recursive: true })
+initializeStorage(ROOT)
 
 const app = express()
 const server = http.createServer(app)

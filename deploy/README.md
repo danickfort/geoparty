@@ -9,3 +9,11 @@ Copy the runner Compose file to its existing NAS runner directory. Register once
 Install and test the constrained SSH key before removing the old runner. An SSH command such as `id` and a deployment request containing an extra field must both fail. Run a real deployment after switching labels and merging the workflow.
 
 The NAS command owns the application image repository, mounts, ports, environment and health checks. It uses the job's temporary read-only GitHub token to verify the commit belongs to `main`, then pulls by digest and verifies the image revision label. The token passes through stdin and is not retained. On failure it restores the previous image; application data changes are not automatically rolled back. An agent with repository write access can still change application code and workflows. This boundary limits deployments to the app's fixed container permissions; it does not provide human approval or protect the app's own data from malicious application code.
+
+After transferring the repository to `danickfort/geoparty`, update the fixed NAS
+project configuration's repository allowlist before using that deployment path.
+Re-register the runner for the transferred repository if required. These settings
+live outside this checkout and are not changed by a Git push.
+
+For Coolify deployments, use the [persistent storage migration guide](../README.md#keep-existing-players-and-scores-in-coolify).
+Back up the current container before attaching new mounts or deploying the new image.
