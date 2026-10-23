@@ -2,7 +2,7 @@
 
 A real-time party game for a shared big screen. Players join from their phones by
 scanning a QR code, pick an animal avatar, and guess where a photo was taken by
-dropping a pin on a world map. See `README.md` for gameplay, deployment, and env vars.
+dropping a pin on a world map. See `README.md` for gameplay and env vars, and `deploy/README.md` for NAS deployment.
 
 ## Commands
 
@@ -72,7 +72,7 @@ plus a catch-all 404. Components are grouped by role: `client/src/components/{ad
 - **Styling** uses the CSS custom properties defined in `client/src/styles/theme.css`
   (`--surface`, `--border`, `--accent`, `--muted`, `--hot`, `--ok`, `--radius`, …) and
   responsive `clamp()` sizing. Reuse them instead of hard-coding colors or sizes. The
-  theme ("Atlas", spec in `docs/design/prototypes/index.html`) is light paper and navy
+  theme ("Atlas") is light paper and navy
   ink, with one red (`--hot`) for the current thing, urgency and the winner, and green
   (`--ok`) for locked-in/ready. Fonts are self-hosted Barlow / Barlow Condensed
   (`--font-body`, `--font-display`; changing numbers use the `.num` class). Leaflet
