@@ -1,19 +1,33 @@
 # NAS deployment
 
-GitHub builds and tests changes, then publishes an image on `main`. The NAS runner sends only its digest and commit to a fixed SSH command. It has no Docker socket, host checkout, or application secrets. Each project has a separate key; SSH denies shells, arbitrary commands, forwarding, and PTYs.
+The [GitHub workflow](../.github/workflows/docker-publish.yml) builds and tests the
+[Docker image](../Dockerfile), publishes it to `danickfort/geoparty` on `main`, and
+requests deployment by digest through the NAS runner. The workflow requires the
+`DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` repository secrets.
 
-Install `/volume1/nas-control/deploy.py`, the root-owned project configuration, and the restricted keys using `nas/install-deployment-controls.py` from the NAS hardening workspace before merging this workflow. The control files must remain outside all agent and runner write mounts. `deployments.jsonl` under `/volume1/nas-control/state` records attempts and results.
+The [runner Compose file](github-runner/docker-compose.yml) supplies the
+`geoparty-deploy` runner label and mounts the restricted SSH key and known hosts
+from `/volume1/nas-control/runner-keys/geoparty`. Register once with a short-lived
+`RUNNER_REGISTRATION_TOKEN`, then recreate the runner with that variable unset.
+Keep its registration and work volumes.
 
-Copy the runner Compose file to its existing NAS runner directory. Register once with a short-lived `RUNNER_REGISTRATION_TOKEN`, then recreate with that variable unset. Registration persists in `runner-config`; do not set `ACCESS_TOKEN` or `EPHEMERAL`. Keep the work and registration volumes. The runner mounts only its own `/volume1/nas-control/runner-keys/geoparty` directory, read-only, plus those volumes.
+The fixed deployment command and application configuration live outside this
+checkout under `/volume1/nas-control`. The NAS configuration must allow
+`danickfort/geoparty`. It owns the application environment, ports, and these
+persistent bind mounts:
 
-Install and test the constrained SSH key before removing the old runner. An SSH command such as `id` and a deployment request containing an extra field must both fail. Run a real deployment after switching labels and merging the workflow.
+```text
+/volume1/docker/geoparty/geoparty/avatars -> /app/avatars
+/volume1/docker/geoparty/geoparty/data    -> /app/data
+/volume1/docker/geoparty/geoparty/uploads -> /app/uploads
+```
 
-The NAS command owns the application image repository, mounts, ports, environment and health checks. It uses the job's temporary read-only GitHub token to verify the commit belongs to `main`, then pulls by digest and verifies the image revision label. The token passes through stdin and is not retained. On failure it restores the previous image; application data changes are not automatically rolled back. An agent with repository write access can still change application code and workflows. This boundary limits deployments to the app's fixed container permissions; it does not provide human approval or protect the app's own data from malicious application code.
+Back up these directories before changing mounts. An empty avatar mount seeds
+the example animals instead of restoring existing players. Preserve avatar
+filenames because saved scores use them as player identities.
 
-After transferring the repository to `danickfort/geoparty`, update the fixed NAS
-project configuration's repository allowlist before using that deployment path.
-Re-register the runner for the transferred repository if required. These settings
-live outside this checkout and are not changed by a Git push.
-
-For Coolify deployments, use the [persistent storage migration guide](../README.md#keep-existing-players-and-scores-in-coolify).
-Back up the current container before attaching new mounts or deploying the new image.
+For an existing NAS instance missing the avatar mount, review and run
+[`configure-nas-avatar-mount.py`](configure-nas-avatar-mount.py)
+on the NAS with `sudo python3`. It validates and backs up the fixed Compose
+configuration before adding the mount for the next deployment. After deploying,
+verify that saved players are selectable and their avatar images load.
