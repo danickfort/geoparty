@@ -5,6 +5,8 @@ their phones, pick an animal avatar, and guess where on Earth a photo was taken
 by dropping a pin on a world map. Closest guess wins the round — scores stack
 up across games.
 
+![GeoParty demo: players join, guess the location, reveal their pins, and celebrate the winner.](docs/geoparty-demo.webp)
+
 ## The three screens
 
 | Route | Who | What |
