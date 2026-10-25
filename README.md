@@ -60,6 +60,14 @@ npm run dev:client                      # Vite on :5173 (proxies to :3000)
 Open `http://localhost:5173/screen`, `http://localhost:5173/admin`, and a few
 plain tabs on `http://localhost:5173/` as players (identity is per-tab).
 
+Run `npm test` and `npm run build` for the unit tests and production build.
+The map lifecycle regression tests run in Chromium with local tile fixtures:
+
+```sh
+npx playwright install chromium
+npm run test:map-lifecycle
+```
+
 ## Playing over the internet (no hosting needed)
 
 To play with people who are **not on your Wi-Fi**, run the server locally and

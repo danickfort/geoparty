@@ -2,7 +2,7 @@ import { onBeforeUnmount, onMounted, shallowRef, type Ref, type ShallowRef } fro
 import L from 'leaflet'
 import { setWorkerUrl } from 'maplibre-gl'
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
-import { maplibreGL } from '@maplibre/maplibre-gl-leaflet'
+import { MapLibreLayer } from './MapLibreLayer'
 
 // MapLibre looks for its worker next to its own module file, which doesn't
 // exist once Vite has bundled it — point it at a worker Vite builds for us.
@@ -74,7 +74,7 @@ function hasWebGL2(): boolean {
  */
 function buildBaseLayers(): Record<string, L.Layer> {
   const streets: L.Layer = hasWebGL2()
-    ? maplibreGL({
+    ? new MapLibreLayer({
         style: OPENFREEMAP_STYLE,
         // A fixed string rather than the style's own: the bridge reads the
         // style's attribution from the GL map, which is already gone when
@@ -117,6 +117,8 @@ export function useLeafletMap(
 ): ShallowRef<L.Map | null> {
   const map = shallowRef<L.Map | null>(null)
   const { layerControl = true, ...mapOptions } = options
+  let resizeFrame: number | undefined
+  let observer: ResizeObserver | undefined
 
   onMounted(() => {
     if (!container.value) return
@@ -139,13 +141,17 @@ export function useLeafletMap(
     }
 
     map.value = m
-    requestAnimationFrame(() => m.invalidateSize())
-    const observer = new ResizeObserver(() => m.invalidateSize())
+    resizeFrame = requestAnimationFrame(() => {
+      resizeFrame = undefined
+      m.invalidateSize()
+    })
+    observer = new ResizeObserver(() => map.value?.invalidateSize())
     observer.observe(container.value)
-    onBeforeUnmount(() => observer.disconnect())
   })
 
   onBeforeUnmount(() => {
+    if (resizeFrame !== undefined) cancelAnimationFrame(resizeFrame)
+    observer?.disconnect()
     map.value?.remove()
     map.value = null
   })
