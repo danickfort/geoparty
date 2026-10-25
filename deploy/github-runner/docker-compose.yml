@@ -1,9 +1,9 @@
 # Install the fixed NAS deployment command and this runner before merging the workflow.
 services:
   runner:
-    image: myoung34/github-runner@sha256:ecfd932558edcad8a34bba439a142eba46744a4a29cbf57ecfe5f1526332604d
+    image: myoung34/github-runner:2.338.1-ubuntu-noble@sha256:36782fe0e5994b301652408c32113a3562fabb1f0ead865ccc196d3e870f9109
     container_name: github-runner-geoparty
-    restart: unless-stopped
+    restart: always
     mem_limit: 1g
     security_opt: ["no-new-privileges:true"]
     environment:
