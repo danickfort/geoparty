@@ -13,6 +13,11 @@ updates:
     groups:
       npm-minor-and-patch:
         update-types: [minor, patch]
+      npm-major:
+        update-types: [major]
+      npm-security:
+        applies-to: security-updates
+        patterns: ["*"]
 
   - package-ecosystem: docker
     directory: /
@@ -27,6 +32,12 @@ updates:
       - dependency-name: node
         update-types: ["version-update:semver-major"]
 
+    groups:
+      docker:
+        patterns: ["*"]
+      docker-security:
+        applies-to: security-updates
+        patterns: ["*"]
   - package-ecosystem: docker-compose
     directory: /deploy/github-runner
     schedule:
@@ -37,6 +48,12 @@ updates:
     cooldown:
       default-days: 3
 
+    groups:
+      docker-compose:
+        patterns: ["*"]
+      docker-compose-security:
+        applies-to: security-updates
+        patterns: ["*"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
@@ -48,4 +65,7 @@ updates:
       default-days: 3
     groups:
       github-actions:
+        patterns: ["*"]
+      github-actions-security:
+        applies-to: security-updates
         patterns: ["*"]
