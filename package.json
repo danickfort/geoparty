@@ -9,7 +9,8 @@
     "build": "vue-tsc --noEmit -p tsconfig.json && vite build && tsc -p tsconfig.server.json",
     "start": "node server/dist/server/index.js",
     "tunnel": "node scripts/tunnel.mjs",
-    "test": "node --import tsx --test tests/*.test.ts"
+    "test": "node --import tsx --test tests/*.test.ts",
+    "test:map-lifecycle": "node --test tests/map-lifecycle.browser.mjs"
   },
   "dependencies": {
     "@fontsource/barlow": "^5.3.0",
@@ -36,6 +37,7 @@
     "@types/qrcode": "^1.5.6",
     "@typescript/native": "npm:typescript@~7.0.2",
     "@vitejs/plugin-vue": "^6.0.10",
+    "playwright": "^1.64.1",
     "tsx": "^4.23.15",
     "typescript": "npm:@typescript/typescript6@~6.0.2",
     "vite": "^8.3.5",

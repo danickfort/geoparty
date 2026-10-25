@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+  <head><meta charset="utf-8"><title>Map lifecycle regression</title></head>
+  <body>
+    <script type="module">
+      import { createApp, h, ref } from 'vue'
+      import { BASE_LAYER_OPTIONS, setBaseLayer, useLeafletMap } from '/src/composables/useLeafletMap.ts'
+
+      const events = []
+      const NativeResizeObserver = window.ResizeObserver
+      window.ResizeObserver = class extends NativeResizeObserver {
+        disconnect() {
+          events.push('disconnect')
+          super.disconnect()
+        }
+      }
+
+      const settle = () => new Promise(resolve => setTimeout(resolve, 150))
+
+      window.runMapLifecycleScenario = async (scenario) => {
+        localStorage.setItem('gp:mapLayer', BASE_LAYER_OPTIONS[scenario === 'immediate' ? 2 : 0].key)
+        let mapRef
+        const host = document.createElement('div')
+        document.body.append(host)
+        const app = createApp({
+          setup() {
+            const container = ref(null)
+            mapRef = useLeafletMap(container, { layerControl: false })
+            return () => h('div', { ref: container, style: 'width: 640px; height: 480px' })
+          },
+        })
+        app.mount(host)
+        const map = mapRef.value
+        map.on('unload', () => events.push('remove'))
+        if (scenario === 'immediate') {
+          app.unmount()
+        } else {
+          await settle()
+          let vector
+          map.eachLayer(layer => {
+            if ('getMaplibreMap' in layer) vector = layer
+          })
+          if (!vector) throw new Error('WebGL2 vector layer is required for this regression')
+          const gl = vector.getMaplibreMap()
+          if (scenario === 'moveend') gl.jumpTo = function () { return this }
+          map.fire('resize', { newSize: map.getSize(), oldSize: map.getSize() })
+          if (scenario === 'switch') {
+            setBaseLayer(map, BASE_LAYER_OPTIONS[2].key)
+            setBaseLayer(map, BASE_LAYER_OPTIONS[0].key)
+            await settle()
+            map.fire('resize', { newSize: map.getSize(), oldSize: map.getSize() })
+            await settle()
+          }
+          if (scenario === 'moveend') {
+            await settle()
+            if (!gl.listens('moveend')) throw new Error('The deferred transition must have a pending moveend listener')
+          }
+          app.unmount()
+          if (scenario === 'moveend') gl.fire('moveend')
+        }
+        await settle()
+        host.remove()
+        return { events, mapCleared: mapRef.value === null }
+      }
+    </script>
+  </body>
+</html>
