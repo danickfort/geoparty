@@ -18,7 +18,8 @@ import type { PanoMeta, StreetViewSpec } from '@shared/streetview'
 import { streetViewTileUrl } from '@shared/streetview'
 
 const props = defineProps<{ spec: StreetViewSpec }>()
-const emit = defineEmits<{ fallback: [] }>()
+// `view` fires when a drag ends, so the admin can make that the round's start.
+const emit = defineEmits<{ fallback: []; view: [view: { heading: number; pitch: number }] }>()
 
 const container = ref<HTMLDivElement | null>(null)
 const canvas = ref<HTMLCanvasElement | null>(null)
@@ -107,22 +108,27 @@ function compileProgram(ctx: WebGLRenderingContext): WebGLProgram | null {
 }
 
 /**
- * The sharpest level that still makes sense: enough pixels that the visible
- * slice (fov/360 of the pano) is about half the canvas resolution — visually
- * plenty, at a quarter of the tile bill of true 1:1 — capped by the GPU's
- * texture limit and a sanity ceiling.
+ * Enough pixels that the visible slice (fov/360 of the pano) is about half the
+ * canvas resolution — visually plenty, at a quarter of the bill of true 1:1.
+ */
+function targetWidth(): number {
+  const el = container.value
+  return ((el ? el.clientWidth : 1280) * Math.min(devicePixelRatio, 2) * (360 / FOV_DEFAULT)) / 2
+}
+
+/**
+ * The sharpest level that still makes sense: `targetWidth`, capped by the
+ * GPU's texture limit and a sanity ceiling.
  */
 function pickLevel(meta: PanoMeta, maxTexture: number): number {
-  const el = container.value
-  const targetWidth =
-    ((el ? el.clientWidth : 1280) * Math.min(devicePixelRatio, 2) * (360 / FOV_DEFAULT)) / 2
   const cap = Math.min(MAX_PANO_WIDTH, maxTexture)
+  const target = targetWidth()
   let best = 0
   for (let i = 0; i < meta.levels.length; i++) {
     const columns = Math.ceil(meta.levels[i].width / meta.tileWidth)
     if (columns * meta.tileWidth > cap) break
     best = i
-    if (meta.levels[i].width >= targetWidth) break
+    if (meta.levels[i].width >= target) break
   }
   return best
 }
@@ -244,6 +250,24 @@ async function loadPanorama(meta: PanoMeta, ctx: WebGLRenderingContext): Promise
   await Promise.all(workers)
 }
 
+/** A photosphere is one equirectangular image; Google resizes it on request. */
+async function loadSphere(imageUrl: string, ctx: WebGLRenderingContext): Promise<void> {
+  const cap = Math.min(MAX_PANO_WIDTH, ctx.getParameter(ctx.MAX_TEXTURE_SIZE))
+  const width = Math.round(Math.min(cap, targetWidth()))
+  let img: HTMLImageElement
+  try {
+    img = await loadTile(`${imageUrl}=w${width}-h${Math.round(width / 2)}-k-no`)
+  } catch {
+    fail()
+    return
+  }
+  if (disposed) return
+  ctx.uniform2f(uniforms.uvScale, 1, 1)
+  ctx.texImage2D(ctx.TEXTURE_2D, 0, ctx.RGBA, ctx.RGBA, ctx.UNSIGNED_BYTE, img)
+  loaded.value = true
+  dirty = true
+}
+
 function onPointerDown(event: PointerEvent): void {
   const cv = canvas.value
   if (!cv) return
@@ -255,6 +279,7 @@ function onPointerDown(event: PointerEvent): void {
   }
   let lastX = event.clientX
   let lastY = event.clientY
+  let moved = false
 
   const onMove = (move: PointerEvent) => {
     const degreesPerPixel = ((fov * 180) / Math.PI) * (1 / cv.clientHeight)
@@ -263,12 +288,15 @@ function onPointerDown(event: PointerEvent): void {
     pitch = Math.min(rad(85), Math.max(rad(-85), pitch))
     lastX = move.clientX
     lastY = move.clientY
+    moved = true
     dirty = true
   }
   const onUp = () => {
     cv.removeEventListener('pointermove', onMove)
     cv.removeEventListener('pointerup', onUp)
     cv.removeEventListener('pointercancel', onUp)
+    const deg = (r: number) => (r * 180) / Math.PI
+    if (moved) emit('view', { heading: ((deg(yaw) % 360) + 360) % 360, pitch: deg(pitch) })
   }
   cv.addEventListener('pointermove', onMove)
   cv.addEventListener('pointerup', onUp)
@@ -283,21 +311,26 @@ function onWheel(event: WheelEvent): void {
 
 onMounted(async () => {
   const cv = canvas.value
-  if (!cv || !props.spec.panoId) {
+  const { panoId, photosphere } = props.spec
+  if (!cv || (!panoId && !photosphere)) {
     fail()
     return
   }
 
-  let meta: PanoMeta
-  try {
-    const res = await fetch(`/api/pano-meta?panoid=${encodeURIComponent(props.spec.panoId)}`)
-    if (!res.ok) throw new Error(`pano-meta ${res.status}`)
-    meta = (await res.json()) as PanoMeta
-  } catch {
-    fail()
-    return
+  // Photospheres need no metadata: one image, and its center faces heading 0
+  // (Google's own links use the image's yaw as the heading).
+  let meta: PanoMeta | null = null
+  if (panoId) {
+    try {
+      const res = await fetch(`/api/pano-meta?panoid=${encodeURIComponent(panoId)}`)
+      if (!res.ok) throw new Error(`pano-meta ${res.status}`)
+      meta = (await res.json()) as PanoMeta
+    } catch {
+      fail()
+      return
+    }
+    if (disposed) return
   }
-  if (disposed) return
 
   const ctx = cv.getContext('webgl', { antialias: false, alpha: false })
   if (!ctx) {
@@ -334,15 +367,16 @@ onMounted(async () => {
 
   yaw = rad(props.spec.heading)
   pitch = rad(Math.min(85, Math.max(-85, props.spec.pitch)))
-  ctx.uniform1f(uniforms.panoYaw, rad(meta.centerHeading))
-  copyright.value = meta.copyright ?? '© Google'
+  ctx.uniform1f(uniforms.panoYaw, rad(meta?.centerHeading ?? 0))
+  copyright.value = meta?.copyright ?? '© Google'
 
   resize()
   resizeObserver = new ResizeObserver(resize)
   if (container.value) resizeObserver.observe(container.value)
   rafId = requestAnimationFrame(frame)
 
-  await loadPanorama(meta, ctx)
+  if (meta) await loadPanorama(meta, ctx)
+  else if (photosphere) await loadSphere(photosphere.imageUrl, ctx)
 })
 
 onBeforeUnmount(() => {

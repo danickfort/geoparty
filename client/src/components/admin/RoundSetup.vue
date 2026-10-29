@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { DEFAULT_TIMER_SECONDS, sanitizeTimerSeconds, type LatLng } from '@shared/types'
-import { isGoogleMapsUrl, isGoogleShortLink, parseStreetViewUrl } from '@shared/streetview'
+import {
+  buildStreetViewUrl,
+  isGoogleMapsUrl,
+  isGoogleShortLink,
+  parseStreetViewUrl,
+} from '@shared/streetview'
 import { useAdminStore } from '@/stores/admin'
 import AnswerPickerMap from '@/components/admin/AnswerPickerMap.vue'
 import SaveTargetPicker from '@/components/admin/SaveTargetPicker.vue'
@@ -128,6 +133,17 @@ const photoUrl = computed(() =>
   !streetView.value && !isGoogleMapsUrl(imageUrl.value) ? imageUrl.value : '',
 )
 
+/**
+ * Dragging the preview moves where the big screen starts: rewrite the link, and
+ * re-save the round if it was saved so it stays ready.
+ */
+function aimAt(view: { heading: number; pitch: number }) {
+  if (!streetView.value) return
+  const wasSaved = saved.value
+  imageUrl.value = buildStreetViewUrl({ ...streetView.value, ...view })
+  if (wasSaved) save()
+}
+
 let expandTimer: ReturnType<typeof setTimeout> | undefined
 onBeforeUnmount(() => clearTimeout(expandTimer))
 
@@ -242,14 +258,13 @@ async function saveForLater() {
     </div>
 
     <div v-if="streetView" class="preview pano">
-      <StreetViewFrame :spec="streetView" />
+      <StreetViewFrame :spec="streetView" @view="aimAt" />
     </div>
     <img v-else-if="photoUrl" class="preview" :src="photoUrl" alt="Round image preview" />
 
     <p v-if="streetView" class="hint-text">
-      Street View, facing {{ Math.round(streetView.heading) }}°. That's where the big screen
-      starts. Drag to look around here or on the screen; the saved heading only changes if you
-      re-copy the URL from Google Maps.
+      Street View, facing {{ Math.round(streetView.heading) % 360 }}°. That's where the big screen
+      starts. Drag the preview to change it.
     </p>
 
     <div class="field">

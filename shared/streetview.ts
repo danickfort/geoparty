@@ -8,8 +8,9 @@
  * stored in `imageUrl`, so prepared games, collections and history keep working.
  *
  * Rendering is **keyless**: no Maps API key, billing account or script tag is
- * involved. Panoramas with a known pano id are drawn by our own WebGL viewer
- * (`StreetViewPano.vue`) from Google's raw imagery tiles — which carry none of
+ * involved. Panoramas with a known pano id, and user photospheres whose link
+ * carries their image URL, are drawn by our own WebGL viewer
+ * (`StreetViewPano.vue`) from Google's raw imagery — which carries none of
  * Google's UI, street names included. Anything else falls back to the legacy
  * `output=svembed` iframe, whose edge-anchored controls are cropped away.
  */
@@ -23,10 +24,20 @@ export interface StreetViewSpec {
   pitch: number
   /** Panorama id when the link carried a classic one, else null. */
   panoId: string | null
+  /**
+   * A user-contributed photosphere (`!2e10` in the link): no imagery tiles, but
+   * the link's `!6s` thumbnail serves the whole equirectangular image once its
+   * `=…` size options are swapped. Null for Google's own panoramas.
+   * shortcut: Google expires that URL after a while (the viewer then falls back
+   * to the iframe); resolve a fresh one from `id` if old rounds need it.
+   */
+  photosphere: { id: string; imageUrl: string } | null
 }
 
 /** Classic Street View panorama ids — the only shape `svembed` reliably takes. */
 const PANO_ID = /^[A-Za-z0-9_-]{22}$/
+/** Where photosphere images live; anything else in `!6s` is a thumbnail service. */
+const SPHERE_IMAGE = /^https:\/\/lh\d*\.(googleusercontent|ggpht)\.com\/[^=?#]+/
 
 /** Whether a string looks like a classic Street View panorama id. */
 export function isPanoId(raw: string): boolean {
@@ -73,7 +84,8 @@ export interface PanoMeta {
 export function streetViewTileUrl(panoId: string, zoom: number, x: number, y: number): string {
   return (
     'https://streetviewpixels-pa.googleapis.com/v1/tile' +
-    `?cb_client=maps_sv.tactile&panoid=${encodeURIComponent(panoId)}` +
+    // `maps_sv.tactile` started answering 403 for every pano in Oct 2026; `apiv3` still serves.
+    `?cb_client=apiv3&panoid=${encodeURIComponent(panoId)}` +
     `&x=${x}&y=${y}&zoom=${zoom}&nbt=1&fover=2`
   )
 }
@@ -179,23 +191,28 @@ export function parseStreetViewUrl(raw: string): StreetViewSpec | null {
       isPanorama = true
       const h = num(view.match(/(-?[\d.]+)h/)?.[1])
       if (h != null) heading = h
-      // Tilt is measured from straight up: 90 is the horizon, more looks down.
+      // Tilt is measured from straight down: 90 is the horizon, more looks up.
       const tilt = num(view.match(/(-?[\d.]+)t/)?.[1])
-      if (tilt != null) pitch = 90 - tilt
+      if (tilt != null) pitch = tilt - 90
     }
   }
 
   // ── the `data=!3m6!1e1!3m4!1s<panoId>` blob ─────────────────────────────
-  const data = params.get('data') ?? path.match(/data=([^/?#]+)/)?.[1] ?? ''
+  // Matched before decoding: a photosphere's `!6s` URL decodes to contain `/`.
+  const data =
+    params.get('data') ?? decodeURIComponent(url.pathname.match(/data=([^/?#]+)/)?.[1] ?? '')
+  let sphereId: string | null = null
+  let sphereImage: string | null = null
   if (data) {
     // `!1e1` is Google's Street View layer marker.
     if (data.includes('!1e1')) isPanorama = true
-    for (const candidate of data.split('!')) {
-      const value = candidate.startsWith('1s') ? candidate.slice(2) : null
-      if (value && PANO_ID.test(value)) {
-        panoId = value
-        break
-      }
+    const pieces = data.split('!')
+    for (const [i, piece] of pieces.entries()) {
+      const value = piece.slice(2)
+      if (piece.startsWith('1s') && PANO_ID.test(value)) panoId ??= value
+      // `!1s<id>!2e10` is a user photosphere; `!6s` carries its image URL.
+      if (piece === '2e10' && pieces[i - 1]?.startsWith('1s')) sphereId = pieces[i - 1].slice(2)
+      if (piece.startsWith('6s')) sphereImage ??= value.match(SPHERE_IMAGE)?.[0] ?? null
     }
   }
 
@@ -242,12 +259,16 @@ export function parseStreetViewUrl(raw: string): StreetViewSpec | null {
   // `svembed` to resolve reliably, and it's not a shape Google hands out.
   if (!isPanorama || !position) return null
 
+  // Photosphere ids can look like classic ones, but have no imagery tiles.
+  const photosphere = sphereId && sphereImage ? { id: sphereId, imageUrl: sphereImage } : null
+
   return {
     lat: position.lat,
     lng: position.lng,
     heading: normalizeHeading(heading ?? 0),
     pitch: clamp(pitch ?? 0, -90, 90),
-    panoId,
+    panoId: photosphere ? null : panoId,
+    photosphere,
   }
 }
 
@@ -286,7 +307,12 @@ export function streetViewEmbedUrl(spec: StreetViewSpec): string {
  * `parseStreetViewUrl`. Used by the admin's Street View finder.
  */
 export function buildStreetViewUrl(spec: StreetViewSpec): string {
-  const view = `${coord(spec.lat)},${coord(spec.lng)},3a,75y,${deg(spec.heading)}h,${deg(90 - spec.pitch)}t`
-  const data = spec.panoId ? `/data=!3m4!1e1!3m2!1s${spec.panoId}!2e0` : ''
+  const view = `${coord(spec.lat)},${coord(spec.lng)},3a,75y,${deg(spec.heading)}h,${deg(90 + spec.pitch)}t`
+  const sphere = spec.photosphere
+  const data = sphere
+    ? `/data=!3m5!1e1!3m3!1s${sphere.id}!2e10!6s${encodeURIComponent(sphere.imageUrl)}`
+    : spec.panoId
+      ? `/data=!3m4!1e1!3m2!1s${spec.panoId}!2e0`
+      : ''
   return `https://www.google.com/maps/@${view}${data}`
 }

@@ -126,27 +126,31 @@ open it, drop into Street View, then copy the URL again.
 
 Don't have a link yet? The admin **Find a place** tool has a **Street View finder**: search a
 place or click the map, and the pin snaps to the nearest panorama and opens it in
-Google's embed so you can look around. *Use for round* hands the link to Round
+the big screen's own viewer so you can look around. *Use for round* hands the link to Round
 setup (pano id included, so the big screen uses the clean tile viewer below), or
-save it to your library. The pin is what counts — walking around inside the preview
-doesn't move the round; to use a spot further down the street, *Open in Google Maps*,
-walk there, and paste that URL into Round setup.
+save it to your library. The pin is what counts — the preview can't walk; to use a
+spot further down the street, *Open in Google Maps*, walk there, and paste that URL
+into Round setup.
 
-The heading in the link is where the panorama starts, and the view is draggable
-with the mouse both in the admin preview and on the big screen.
+The heading and tilt in the link are where the panorama starts, and the view is
+draggable with the mouse both in the admin preview and on the big screen. Dragging
+the preview in Round setup or the finder moves the start to wherever you let go
+(and re-saves the round if it was already saved).
 
 Rendering is keyless (no Google Maps API key or billing account) and comes in
 two flavours:
 
-- **Our own viewer** (the normal case, whenever the link carries a panorama id):
-  Google's raw imagery tiles stitched into a WebGL panorama. Street names,
+- **Our own viewer** (the normal case, whenever the link carries a panorama id,
+  or a user photosphere's image URL): Google's raw imagery stitched into a WebGL
+  panorama. Street names,
   navigation arrows, the place-name chip and every other control are drawn by
   Google's renderer, not baked into the imagery — so none of them exist here.
   Nothing gives the answer away. The view also drifts in a slow automatic pan
   until someone grabs it, and scroll-wheel zooms. The position is fixed: there
   is deliberately no walking down the street.
 - **The cropped iframe fallback** (no panorama id in the link, or the imagery
-  tiles aren't available — e.g. a user-contributed photosphere): Google's
+  isn't available — e.g. a photosphere whose image URL Google has since
+  expired, which happens after a while): Google's
   keyless `svembed` iframe with its edge-anchored overlays cropped out of the
   frame. Here Google draws street names and navigation arrows inside the
   panorama itself, out of our reach — so prefer links with car coverage.

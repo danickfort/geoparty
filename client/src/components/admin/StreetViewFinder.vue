@@ -2,19 +2,19 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import L from 'leaflet'
 import { DEFAULT_TIMER_SECONDS, type GeocodeHit, type LatLng, type PanoLookup } from '@shared/types'
-import { buildStreetViewUrl, streetViewEmbedUrl, type StreetViewSpec } from '@shared/streetview'
+import { buildStreetViewUrl, type StreetViewSpec } from '@shared/streetview'
 import { flagIcon, onSingleClick, useLeafletMap } from '@/composables/useLeafletMap'
 import { useAdminStore } from '@/stores/admin'
 import SaveTargetPicker from '@/components/admin/SaveTargetPicker.vue'
+import StreetViewFrame from '@/components/StreetViewFrame.vue'
 
 /**
  * Find a Street View for a round without leaving the admin: search a place or
  * click the map, the pin snaps to the nearest panorama (keyless lookup), and
- * Google's embed shows it so the host can look around before using it.
+ * the big screen's own viewer shows it; dragging it sets the starting view.
  *
- * The embed can't tell us where the host walks inside it (it's a cross-origin
- * iframe), so the snapped panorama is what the round uses; "Open in Google
- * Maps" is the way to pick a spot further down the street.
+ * The viewer can't walk, so the snapped panorama is what the round uses; "Open
+ * in Google Maps" is the way to pick a spot further down the street.
  */
 const admin = useAdminStore()
 
@@ -33,6 +33,7 @@ const pano = ref<PanoLookup | null>(null)
 const looking = ref(false)
 const lookupError = ref<string | null>(null)
 const heading = ref(0)
+const pitch = ref(0)
 
 const saveTarget = ref('prepared')
 const saved = ref(false)
@@ -77,6 +78,7 @@ async function place(p: LatLng) {
     pano.value = found
     if (found) {
       heading.value = Math.round(found.heading) % 360
+      pitch.value = 0
       placeMarker(found)
     } else {
       lookupError.value = 'No Street View within 50 m of that spot — click closer to a road.'
@@ -95,28 +97,22 @@ onBeforeUnmount(() => (marker = null))
 
 const spec = computed<StreetViewSpec | null>(() =>
   pano.value
-    ? { lat: pano.value.lat, lng: pano.value.lng, heading: heading.value, pitch: 0, panoId: pano.value.panoId }
+    ? {
+        lat: pano.value.lat,
+        lng: pano.value.lng,
+        heading: heading.value,
+        pitch: pitch.value,
+        panoId: pano.value.panoId,
+        photosphere: null,
+      }
     : null,
 )
 const link = computed(() => (spec.value ? buildStreetViewUrl(spec.value) : ''))
 
-// Every heading change reloads the iframe — debounce so dragging the slider
-// doesn't thrash it.
-const embedSrc = ref('')
-let embedTimer: ReturnType<typeof setTimeout> | undefined
-watch(
-  spec,
-  (s) => {
-    clearTimeout(embedTimer)
-    if (!s) {
-      embedSrc.value = ''
-      return
-    }
-    embedTimer = setTimeout(() => (embedSrc.value = streetViewEmbedUrl(s)), embedSrc.value ? 350 : 0)
-  },
-  { immediate: true },
-)
-onBeforeUnmount(() => clearTimeout(embedTimer))
+function aimAt(view: { heading: number; pitch: number }) {
+  heading.value = view.heading
+  pitch.value = view.pitch
+}
 
 function useForRound() {
   if (!spec.value) return
@@ -154,7 +150,7 @@ async function saveForLater() {
       <h3>Find a Street View</h3>
     </header>
     <p class="muted note">
-      Search a place or click the map. The pin snaps to the nearest panorama and Google's view of it
+      Search a place or click the map. The pin snaps to the nearest panorama and a preview of it
       opens below.
     </p>
 
@@ -179,20 +175,15 @@ async function saveForLater() {
 
     <template v-if="spec">
       <div class="embed">
-        <iframe
-          v-if="embedSrc"
-          :src="embedSrc"
-          title="Street View preview"
-          referrerpolicy="no-referrer-when-downgrade"
-        ></iframe>
+        <StreetViewFrame :spec="spec" @view="aimAt" />
       </div>
-      <label class="field">
-        <span class="label">Starting direction: <span class="num">{{ heading }}°</span></span>
-        <input v-model.number="heading" type="range" min="0" max="359" step="1" />
-      </label>
       <p class="muted note">
-        Walking inside the preview doesn't move the round — the pin does. Found a better spot? Open it
-        in Google Maps, walk there, and paste that link into Round setup.
+        Starts facing <span class="num">{{ Math.round(heading) % 360 }}°</span>. Drag the preview to
+        change it.
+      </p>
+      <p class="muted note">
+        The pin picks the spot. Found a better one down the street? Open it in Google Maps, walk
+        there, and paste that link into Round setup.
       </p>
       <div class="buttons">
         <button class="btn btn-primary" @click="useForRound">Use for round</button>
@@ -289,31 +280,6 @@ async function saveForLater() {
   background: var(--photo-bg);
 }
 
-.embed iframe {
-  display: block;
-  width: 100%;
-  height: 100%;
-  border: 0;
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.label {
-  font-size: 0.8125rem;
-  font-weight: 600;
-}
-
-.label .num {
-  font-size: 1rem;
-}
-
-.field input[type='range'] {
-  accent-color: var(--text);
-}
 
 .buttons {
   display: flex;

@@ -8,12 +8,13 @@
  * 1. `StreetViewPano.vue` — our own WebGL viewer fed by Google's raw imagery
  *    tiles (keyless). Since we draw the panorama ourselves, none of Google's
  *    UI exists at all: no street names, no place-name chip, no navigation
- *    chevrons, no controls. Needs a pano id and Google-car coverage.
+ *    chevrons, no controls. Needs a pano id with Google-car coverage, or a
+ *    user photosphere's image URL.
  *
- * 2. The keyless `output=svembed` iframe, when there's no pano id or the tile
- *    viewer fails (e.g. a user-contributed photosphere). Its UI can't be turned
- *    off with a URL parameter, so the iframe is laid out larger than this box
- *    on every side and the overflow is clipped: each edge-anchored control
+ * 2. The keyless `output=svembed` iframe, when there's neither or the tile
+ *    viewer fails (e.g. a photosphere link without its image URL). Its UI
+ *    can't be turned off with a URL parameter, so the iframe is laid out larger
+ *    than this box on every side and the overflow is clipped: each edge-anchored control
  *    (place-name chip, compass, zoom, attribution) lands outside the visible
  *    area. In-scene street names remain — they're drawn by Google's renderer
  *    inside the iframe, out of our reach — which is why the tile viewer comes
@@ -25,16 +26,16 @@ import { streetViewEmbedUrl } from '@shared/streetview'
 import StreetViewPano from '@/components/StreetViewPano.vue'
 
 const props = defineProps<{ spec: StreetViewSpec }>()
+// Only our own viewer reports where it looks; the iframe is cross-origin.
+const emit = defineEmits<{ view: [view: { heading: number; pitch: number }] }>()
 
 const iframeFallback = ref(false)
-watch(
-  () => props.spec.panoId,
-  () => {
-    iframeFallback.value = false
-  },
-)
+const panoKey = computed(() => props.spec.panoId ?? props.spec.photosphere?.imageUrl ?? '')
+watch(panoKey, () => {
+  iframeFallback.value = false
+})
 
-const usePano = computed(() => !!props.spec.panoId && !iframeFallback.value)
+const usePano = computed(() => !!panoKey.value && !iframeFallback.value)
 const src = computed(() => streetViewEmbedUrl(props.spec))
 </script>
 
@@ -42,9 +43,10 @@ const src = computed(() => streetViewEmbedUrl(props.spec))
   <div class="street-view">
     <StreetViewPano
       v-if="usePano"
-      :key="spec.panoId ?? ''"
+      :key="panoKey"
       :spec="spec"
       @fallback="iframeFallback = true"
+      @view="emit('view', $event)"
     />
     <iframe
       v-else
