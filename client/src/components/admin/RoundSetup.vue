@@ -6,6 +6,7 @@ import {
   isGoogleMapsUrl,
   isGoogleShortLink,
   parseStreetViewUrl,
+  type PanoMeta,
 } from '@shared/streetview'
 import { useAdminStore } from '@/stores/admin'
 import AnswerPickerMap from '@/components/admin/AnswerPickerMap.vue'
@@ -144,6 +145,31 @@ function aimAt(view: { heading: number; pitch: number }) {
   if (wasSaved) save()
 }
 
+/**
+ * A Street View link knows where it was taken, so entering one sets the true
+ * location. Only for links the host enters (not a loaded game or a re-aimed
+ * preview), and once per panorama, so a pin moved by hand afterwards stays put.
+ */
+let filledFor = ''
+async function fillAnswerFromLink() {
+  const spec = streetView.value
+  if (!spec) return
+  const key = spec.panoId ?? `${spec.lat},${spec.lng}`
+  if (key === filledFor) return
+  filledFor = key
+  answer.value = { lat: spec.lat, lng: spec.lng }
+  if (!spec.panoId) return
+  // The panorama's own record says where the camera stood; the link is rounder.
+  try {
+    const res = await fetch(`/api/pano-meta?panoid=${spec.panoId}`)
+    if (!res.ok || filledFor !== key) return
+    const meta: PanoMeta = await res.json()
+    answer.value = { lat: meta.lat, lng: meta.lng }
+  } catch {
+    // The link's own coordinates are already in place.
+  }
+}
+
 let expandTimer: ReturnType<typeof setTimeout> | undefined
 onBeforeUnmount(() => clearTimeout(expandTimer))
 
@@ -161,8 +187,10 @@ watch(imageUrl, (url) => {
       const expanded = await admin.resolveLink(url)
       // A late answer for a link the host has since replaced is dead weight.
       // On success this re-runs the watcher, which clears `expanding`.
-      if (imageUrl.value === url) imageUrl.value = expanded
-      else expanding.value = false
+      if (imageUrl.value === url) {
+        imageUrl.value = expanded
+        fillAnswerFromLink()
+      } else expanding.value = false
     } catch {
       if (imageUrl.value !== url) return
       expandError.value =
@@ -242,6 +270,7 @@ async function saveForLater() {
           v-model.trim="imageUrl"
           type="url"
           placeholder="https://… a photo or a Street View link"
+          @input="fillAnswerFromLink"
         />
         <label class="upload btn">
           {{ uploading ? 'Uploading…' : 'Upload' }}
